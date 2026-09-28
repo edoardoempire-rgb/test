@@ -16,7 +16,6 @@ jobs:
           cat .github/bootstrap/source.part01 .github/bootstrap/source.part02 | base64 -d > /tmp/wallet-skins-source.tar.xz
           tar -xJf /tmp/wallet-skins-source.tar.xz -C .
           rm -rf .github/bootstrap
-          rm -f .github/workflows/bootstrap.yml
           git config user.name github-actions[bot]
           git config user.email 41898282+github-actions[bot]@users.noreply.github.com
           git add -A
