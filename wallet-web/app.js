@@ -74,16 +74,21 @@ function consumeCallback() {
     show("onboarding");
   }
   if (params.get("card")) {
+    state.helperReady = true;
+    state.setupReady = true;
     state.cardRef = params.get("card");
+    localStorage.setItem("skinBridgeReady", "true");
+    localStorage.setItem("skinBridgeSetupReady", "true");
     localStorage.setItem("skinBridgeCardRef", state.cardRef);
     setMode("native");
-    show("onboarding");
+    show("studio");
+    notice("#studioStatus", "Configurazione completata. Il tuo iPhone è pronto.", "info");
   }
   if (params.get("studio") === "1") {
     setMode(state.mode);
     show("studio");
   }
-  if (["bridge", "setup", "card", "studio"].some(key => params.has(key))) history.replaceState({}, "", "/");
+  if (["bridge", "setup", "card", "studio", "onboarding"].some(key => params.has(key))) history.replaceState({}, "", "/");
 }
 
 function step(element, status, detail) {
@@ -126,19 +131,16 @@ function renderOnboarding() {
   $("#installHelper").textContent = sideStore ? "2. Installa SkinBridge" : "Apri installazione";
   $("#installHelper").disabled = state.helperReady || !installConfigured;
 
-  step($("#helperStep"), state.helperReady ? "ok" : "locked");
-  $("#testHelper").disabled = !deviceOK;
-  step($("#setupStep"), state.setupReady ? "ok" : state.helperReady ? "warn" : "locked");
-  $("#openSetup").disabled = !state.helperReady;
+  const automaticReady = state.helperReady && state.setupReady && Boolean(state.cardRef);
   step(
-    $("#cardStep"),
-    state.cardRef ? "ok" : state.setupReady ? "warn" : "locked",
-    state.cardRef ? "Carta collegata con riferimento opaco." : "SkinBridge ti guiderà nell'apertura di Wallet."
+    $("#automationStep"),
+    automaticReady ? "ok" : deviceOK && installConfigured ? "warn" : "locked",
+    automaticReady
+      ? "SkinBridge configurata e carta collegata con riferimento opaco."
+      : "Un'unica procedura per controllo, VPN, pairing e carta. Non leggerà numero, CVV o token."
   );
-  $("#scanCard").disabled = !state.setupReady;
-  const complete = deviceOK && state.helperReady && state.setupReady && Boolean(state.cardRef);
-  $("#finishSetup").disabled = !complete;
-  $("#progressBar").style.width = `${[deviceOK, state.helperReady, state.helperReady, state.setupReady, Boolean(state.cardRef)].filter(Boolean).length * 20}%`;
+  $("#startAutomation").disabled = !deviceOK || !installConfigured || automaticReady;
+  $("#progressBar").style.width = `${[deviceOK, state.helperReady, automaticReady].filter(Boolean).length * (100 / 3)}%`;
 }
 
 function notice(selector, text, kind = "info") {
@@ -219,19 +221,10 @@ $("#installHelper").addEventListener("click", () => {
     location.href = state.config.helperInstallUrl;
   }
 });
-$("#testHelper").addEventListener("click", () => launchScheme(
-  `skinbridge://ping?callback=${encodeURIComponent(callbackUrl({ bridge: "ready" }))}`,
-  "SkinBridge non si è aperto. Installalo dal passaggio precedente, quindi riprova."
+$("#startAutomation").addEventListener("click", () => launchScheme(
+  `skinbridge://onboard?callback=${encodeURIComponent(callbackUrl({ onboarding: "complete" }))}`,
+  "SkinBridge non si è aperto. Installalo dal passaggio precedente, quindi tocca di nuovo questo pulsante."
 ));
-$("#openSetup").addEventListener("click", () => launchScheme(
-  `skinbridge://setup?callback=${encodeURIComponent(callbackUrl({ setup: "ready" }))}`,
-  "SkinBridge non ha risposto. Riapri l'app e riprova."
-));
-$("#scanCard").addEventListener("click", () => launchScheme(
-  `skinbridge://scan?callback=${encodeURIComponent(callbackUrl({ card: "detected" }))}`,
-  "SkinBridge non ha avviato il rilevamento. Riapri l'app e riprova."
-));
-$("#finishSetup").addEventListener("click", () => { setMode("native"); show("studio"); });
 
 document.querySelectorAll(".swatch").forEach(button => button.addEventListener("click", () => {
   state.selectedSkin = button.dataset.skin;
