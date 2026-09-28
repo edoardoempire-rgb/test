@@ -22,11 +22,11 @@ final class PairingController: ObservableObject {
     @Published var pairingPIN: String? = nil
 
     /// Path to the pairing file that was actively found or created.
-    static var customPairingFilePath: String? = nil
+    nonisolated(unsafe) static var customPairingFilePath: String? = nil
 
     /// Persisted altIRK keeps the host identity stable across pairings so a
     /// device that has already paired recognises this host.
-    private static let altIRKKey = "skinBridgePairingHostAltIRK"
+    nonisolated private static let altIRKKey = "skinBridgePairingHostAltIRK"
     nonisolated private static var storedAltIRK: String {
         get { UserDefaults.standard.string(forKey: altIRKKey) ?? "" }
         set { UserDefaults.standard.set(newValue, forKey: altIRKKey) }
@@ -54,7 +54,7 @@ final class PairingController: ObservableObject {
 
     /// Ensures the given pairing file is mirrored to canonical aircard_pairing.plist and airlift_pairing.plist.
     @discardableResult
-    static func syncCanonicalPairingFile(from sourcePath: String) -> String {
+    nonisolated static func syncCanonicalPairingFile(from sourcePath: String) -> String {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let aircardURL = dir.appendingPathComponent("aircard_pairing.plist")
         let airliftURL = dir.appendingPathComponent("airlift_pairing.plist")
@@ -75,7 +75,7 @@ final class PairingController: ObservableObject {
     /// Path where the pairing file is written or read from.
     /// Checks for canonical aircard_pairing.plist, custom path, or any plist in Documents,
     /// automatically adopting and standardizing it.
-    static func pairingFilePath() -> String {
+    nonisolated static func pairingFilePath() -> String {
         let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let aircardPath = dir.appendingPathComponent("aircard_pairing.plist").path
         if FileManager.default.fileExists(atPath: aircardPath) {
