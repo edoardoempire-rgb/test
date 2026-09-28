@@ -2,8 +2,16 @@ import SwiftUI
 
 @main struct SkinBridgeApp: App {
     @StateObject private var model = BridgeViewModel()
+    @Environment(\.scenePhase) private var scenePhase
     var body: some Scene {
-        WindowGroup { ContentView().environmentObject(model).onOpenURL { model.open($0) } }
+        WindowGroup {
+            ContentView()
+                .environmentObject(model)
+                .onOpenURL { model.open($0) }
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active { model.onAppBecameActive() }
+                }
+        }
     }
 }
 
@@ -76,16 +84,12 @@ private struct SetupView: View {
                     }
                 }
                 if !model.setupReady {
-                    Button("1. Apri LocalDevVPN") { model.openLocalDevVPN() }.buttonStyle(BridgeSecondaryButton())
-                    Button("2. Apri impostazioni dell'app") { model.openAppSettings() }.buttonStyle(BridgeSecondaryButton())
-                    Button("3. Avvia pairing su questo iPhone") { model.startPairing() }.buttonStyle(BridgeSecondaryButton())
                     if let pin = model.pairingPIN {
                         VStack(spacing: 5) { Text("CODICE PAIRING").font(.caption.bold()).foregroundStyle(.secondary); Text(pin).font(.system(size: 34, weight: .bold, design: .monospaced)).tracking(5) }.frame(maxWidth: .infinity).padding(18).background(Color.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 16))
                     }
-                    Text("Durante il pairing vai in Impostazioni › Privacy e sicurezza › Modalità sviluppatore › Pair with SkinBridge e conferma il codice mostrato.").font(.footnote).foregroundStyle(.secondary).lineSpacing(3)
-                    Button("Ricontrolla") { Task { await model.refreshSetup() } }.buttonStyle(BridgeSecondaryButton())
+                    Text("Le conferme di sicurezza di iOS restano manuali. SkinBridge aprirà le schermate necessarie e riprenderà automaticamente quando torni nell'app.").font(.footnote).foregroundStyle(.secondary).lineSpacing(3)
                 }
-                Button("Torna a Safari") { model.finishSetup() }.buttonStyle(BridgePrimaryButton()).disabled(!model.setupReady)
+                Button(model.setupActionTitle) { model.continueAutomaticSetup() }.buttonStyle(BridgePrimaryButton()).disabled(model.busy || !model.setupActionEnabled)
                 if model.busy { ProgressView().frame(maxWidth: .infinity).tint(.white) }
                 PrivacyNote().padding(.top, 8)
             }.padding(26)
