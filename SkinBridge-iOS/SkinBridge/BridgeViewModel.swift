@@ -128,7 +128,7 @@ import Combine
                 guard let callback = scanCallback, var components = URLComponents(url: callback, resolvingAgainstBaseURL: false) else { return }
                 var items = components.queryItems ?? []; items.removeAll { $0.name == "card" }; items.append(URLQueryItem(name: "card", value: card)); components.queryItems = items
                 scanning = false
-                if let url = components.url { UIApplication.shared.open(url) }
+                if let url = components.url { _ = await UIApplication.shared.open(url) }
             } catch {
                 scanning = false; headline = "Carta non rilevata"; detail = error.localizedDescription
             }
