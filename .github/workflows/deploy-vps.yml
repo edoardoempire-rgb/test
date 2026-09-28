@@ -1,0 +1,65 @@
+name: Deploy Wallet Skins VPS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deployment tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass rsync
+
+      - name: Upload and start Wallet Skins
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          test -n "$SSHPASS"
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+
+          SSH_OPTIONS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15"
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
+            'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync && install -d -m 0755 /opt/wallet-skins'
+
+          sshpass -e rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.env' \
+            --exclude 'outputs/' \
+            --exclude 'work/' \
+            -e "ssh $SSH_OPTIONS" \
+            ./ "$VPS_USER@$VPS_HOST:/opt/wallet-skins/"
+
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" 'cat > /opt/wallet-skins/.env' <<'ENV_FILE'
+          PORT=8787
+          DOMAIN=wallet.82-165-176-79.sslip.io
+          PUBLIC_BASE_URL=https://wallet.82-165-176-79.sslip.io
+          WEB_CALLBACK_URL=https://wallet.82-165-176-79.sslip.io/callback.html
+          JOB_TTL_SECONDS=120
+          ALLOW_WEB_DEMO=true
+          EXECUTOR_MODE=airlift
+          HELPER_INSTALL_URL=
+          SKINBRIDGE_IPA_URL=
+          SKINBRIDGE_SIDELOAD_IPA_URL=https://github.com/edoardoempire-rgb/test/releases/download/skinbridge-latest/SkinBridge-unsigned.ipa
+          SIDESTORE_SETUP_URL=https://sideinstaller.net/
+          SKINBRIDGE_BUNDLE_ID=com.walletskins.skinbridge
+          SKINBRIDGE_VERSION=0.1.0
+          SKINBRIDGE_TITLE=SkinBridge
+          SUPPORT_URL=
+          ENV_FILE
+
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
+            'chmod +x /opt/wallet-skins/scripts/deploy-vps.sh && cd /opt/wallet-skins && ./scripts/deploy-vps.sh'
+
+      - name: Verify public health endpoint
+        run: curl --fail --show-error --silent --retry 10 --retry-delay 6 https://wallet.82-165-176-79.sslip.io/health
