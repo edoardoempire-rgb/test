@@ -13,6 +13,9 @@ import Combine
     @Published var scanReady = false
     @Published var scanning = false
     @Published var pairingPIN: String?
+    @Published var onboardingMode = false
+    @Published var setupActionTitle = "Continua automaticamente"
+    @Published var setupActionEnabled = true
     private var setupCallback: URL?
     private var scanCallback: URL?
     private let client = JobClient()
@@ -26,12 +29,26 @@ import Combine
             return
         }
         if url.host == "setup" {
+            onboardingMode = false
             screen = .setup
             setupCallback = callback(from: url)
             Task { await refreshSetup() }
             return
         }
+        if url.host == "onboard" {
+            guard let callback = callback(from: url) else { headline = "Callback non valida"; return }
+            onboardingMode = true
+            setupCallback = callback
+            scanCallback = callback
+            screen = .setup
+            Task {
+                await refreshSetup()
+                if setupReady { advanceToCardScan() }
+            }
+            return
+        }
         if url.host == "scan" {
+            onboardingMode = false
             screen = .scan
             scanCallback = callback(from: url)
             scanReady = executor.name == "mock"
@@ -55,16 +72,59 @@ import Combine
         busy = true
         let check = await executor.compatibility()
         let mock = executor.name == "mock"
+        let state = localSetupState()
         setupItems = [
             SetupItem(id: "helper", title: "SkinBridge", detail: "Installato e raggiungibile da Safari.", ready: true),
             SetupItem(id: "signature", title: "Sicurezza job", detail: "Verifica Ed25519 e scadenza attive.", ready: true),
-            SetupItem(id: "vpn", title: "VPN locale", detail: mock ? "Non necessaria nella demo mock." : "Attiva LocalDevVPN prima del test reale.", ready: mock),
-            SetupItem(id: "pairing", title: "Pairing iPhone", detail: mock ? "Non necessario nella demo mock." : check.reason, ready: check.supported)
+            SetupItem(id: "vpn", title: "VPN locale", detail: mock ? "Non necessaria nella demo mock." : state.vpn ? "LocalDevVPN attiva." : "SkinBridge aprirà LocalDevVPN per te.", ready: state.vpn),
+            SetupItem(id: "pairing", title: "Pairing iPhone", detail: mock ? "Non necessario nella demo mock." : state.paired ? "Pairing locale già disponibile." : "SkinBridge avvierà il pairing e aprirà le Impostazioni.", ready: state.paired)
         ]
         setupReady = mock || check.supported
+        setupActionEnabled = platformSupported
+        setupActionTitle = !platformSupported ? "iOS non compatibile" : setupReady ? (onboardingMode ? "Continua alla carta" : "Torna a Safari") : !state.vpn ? "Attiva LocalDevVPN" : !state.paired ? "Avvia pairing guidato" : "Ricontrolla automaticamente"
         headline = setupReady ? "iPhone pronto" : "Completa la preparazione"
-        detail = setupReady ? "Puoi tornare a Safari e provare il round-trip." : check.reason
+        detail = !platformSupported ? check.reason : setupReady ? (onboardingMode ? "La preparazione è completa. Ora colleghiamo la carta." : "Puoi tornare a Safari.") : !state.vpn ? "Tocca il pulsante: apriremo LocalDevVPN. Attivala e torna qui; SkinBridge riprenderà da sola." : !state.paired ? "La VPN è attiva. Avvia il pairing: apriremo le Impostazioni e ti mostreremo il codice da confermare." : check.reason
         busy = false
+    }
+
+    func continueAutomaticSetup() {
+        guard !busy else { return }
+        guard platformSupported else {
+            detail = "Il core reale richiede iOS 27 o successivo."
+            return
+        }
+        let state = localSetupState()
+        if setupReady {
+            if onboardingMode { advanceToCardScan() } else { finishSetup() }
+            return
+        }
+        if !state.vpn {
+            detail = "In LocalDevVPN attiva il collegamento, poi torna a SkinBridge. Riprenderemo automaticamente."
+            openLocalDevVPN()
+            return
+        }
+        if !state.paired {
+            startPairing()
+            return
+        }
+        Task {
+            await refreshSetup()
+            if setupReady && onboardingMode { advanceToCardScan() }
+        }
+    }
+
+    func onAppBecameActive() {
+        guard screen == .setup, onboardingMode, !busy, platformSupported else { return }
+        Task {
+            try? await Task.sleep(for: .milliseconds(500))
+            await refreshSetup()
+            if setupReady {
+                advanceToCardScan()
+            } else {
+                let state = localSetupState()
+                if state.vpn && !state.paired { startPairing() }
+            }
+        }
     }
 
     func finishSetup() {
@@ -86,6 +146,8 @@ import Combine
         #if SKINBRIDGE_REAL && canImport(AirliftFFI)
         busy = true
         pairingPIN = nil
+        headline = "Pairing in corso"
+        detail = "Apro le Impostazioni. Seleziona Pair with SkinBridge e conferma il codice mostrato qui."
         Task {
             while busy {
                 pairingPIN = PairingController.shared.pairingPIN
@@ -96,10 +158,15 @@ import Combine
             do {
                 _ = try await PairingController.shared.startAndWait()
                 await refreshSetup()
+                if setupReady && onboardingMode { advanceToCardScan() }
             } catch {
                 detail = "Pairing non completato: \(error.localizedDescription)"
                 busy = false
             }
+        }
+        Task {
+            try? await Task.sleep(for: .milliseconds(900))
+            if busy { openAppSettings() }
         }
         #else
         detail = "Il pairing reale non è incluso nel build mock. Per la demo puoi continuare senza questo passaggio."
@@ -109,10 +176,7 @@ import Combine
     func completeCardScan() {
         guard scanReady, let callback = scanCallback,
               var components = URLComponents(url: callback, resolvingAgainstBaseURL: false) else { return }
-        var items = components.queryItems ?? []
-        items.removeAll { $0.name == "card" }
-        items.append(URLQueryItem(name: "card", value: "mock-card-001"))
-        components.queryItems = items
+        components.queryItems = completedCallbackItems(components.queryItems, card: "mock-card-001")
         if let url = components.url { UIApplication.shared.open(url) }
     }
 
@@ -126,7 +190,7 @@ import Combine
             do {
                 let card = try await CardScanner.shared.detectFirst()
                 guard let callback = scanCallback, var components = URLComponents(url: callback, resolvingAgainstBaseURL: false) else { return }
-                var items = components.queryItems ?? []; items.removeAll { $0.name == "card" }; items.append(URLQueryItem(name: "card", value: card)); components.queryItems = items
+                components.queryItems = self.completedCallbackItems(components.queryItems, card: card)
                 scanning = false
                 if let url = components.url { _ = await UIApplication.shared.open(url) }
             } catch {
@@ -136,6 +200,41 @@ import Combine
         #else
         completeCardScan()
         #endif
+    }
+
+    private func advanceToCardScan() {
+        screen = .scan
+        scanReady = executor.name == "mock"
+        headline = scanReady ? "Ultimo passaggio" : "Collega la carta"
+        detail = scanReady ? "La build mock userà un riferimento opaco di prova e tornerà automaticamente a Safari." : "Avvia il rilevamento, poi premi due volte il tasto laterale, autenticati e seleziona la carta."
+    }
+
+    private func completedCallbackItems(_ existing: [URLQueryItem]?, card: String) -> [URLQueryItem] {
+        var items = existing ?? []
+        items.removeAll { ["bridge", "setup", "card"].contains($0.name) }
+        if onboardingMode {
+            items.append(URLQueryItem(name: "bridge", value: "ready"))
+            items.append(URLQueryItem(name: "setup", value: "ready"))
+        }
+        items.append(URLQueryItem(name: "card", value: card))
+        return items
+    }
+
+    private func localSetupState() -> (vpn: Bool, paired: Bool) {
+        #if SKINBRIDGE_REAL && canImport(AirliftFFI)
+        let pairing = PairingController.pairingFilePath()
+        let attributes = try? FileManager.default.attributesOfItem(atPath: pairing)
+        let bytes = attributes?[.size] as? NSNumber
+        return (NetworkStatus.loopbackTunnelUp(deviceIP: "10.7.0.1"), (bytes?.intValue ?? 0) > 0)
+        #else
+        return (true, true)
+        #endif
+    }
+
+    private var platformSupported: Bool {
+        if executor.name == "mock" { return true }
+        if #available(iOS 27.0, *) { return true }
+        return false
     }
 
     private func run(api: URL, id: String) async {
