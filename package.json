@@ -1,0 +1,9 @@
+{
+  "name": "wallet-skins-poc",
+  "private": true,
+  "scripts": {
+    "dev": "node wallet-api/src/server.mjs",
+    "test": "node --test wallet-api/test/*.test.mjs"
+  },
+  "engines": { "node": ">=20" }
+}

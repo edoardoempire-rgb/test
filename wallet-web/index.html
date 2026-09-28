@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#080a0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/styles.css">
+  <style>.install-actions{display:grid;gap:8px}.phone-guide{margin-top:12px;padding:11px 12px;border:1px solid #363c49;border-radius:12px;background:#0d1017;color:#aeb6c5;font-size:12px;line-height:1.45}.phone-guide summary{color:#e4e7ed;font-weight:750;cursor:pointer}.phone-guide ol{padding-left:19px;margin:12px 0}.phone-guide li{margin:8px 0}.phone-guide p{margin:10px 0 0;color:#e5c970}</style>
+  <title>Wallet Skins</title>
+</head>
+<body>
+  <header class="topbar">
+    <button class="brand" data-go="home" aria-label="Wallet Skins, torna all'inizio"><span class="brand-mark">W</span><span>Wallet Skins</span></button>
+    <span id="modeBadge" class="pill">POC</span>
+  </header>
+  <main id="app" aria-live="polite">
+    <section class="screen active" data-screen="home">
+      <div class="hero-art" aria-hidden="true"><div class="wallet-card card-back"></div><div class="wallet-card card-front"><span>•••• 2048</span></div></div>
+      <p class="eyebrow">Tutto dal tuo iPhone</p>
+      <h1>Una nuova pelle per il tuo Wallet.</h1>
+      <p class="lead">Ti accompagniamo in ogni passaggio. Nessun dato della carta viene richiesto.</p>
+      <div class="actions">
+        <button class="primary" id="startDemo">Prova la demo guidata <span>→</span></button>
+        <button class="secondary" id="startNative">Configura SkinBridge</button>
+      </div>
+      <div class="trust-row"><span>✓ Job firmati</span><span>✓ Operazioni confermate</span><span>✓ Nessun PAN o CVV</span></div>
+    </section>
+    <section class="screen" data-screen="onboarding">
+      <button class="back" data-go="home">‹ Indietro</button>
+      <p class="eyebrow">Configurazione guidata</p><h2>Prepariamo il tuo iPhone.</h2>
+      <p class="lead compact">Completa i passaggi nell'ordine indicato. Dopo ogni apertura tornerai qui automaticamente.</p>
+      <div class="progress"><span id="progressBar"></span></div>
+      <ol class="steps">
+        <li id="deviceStep" class="step"><span class="step-icon">1</span><div><strong>iPhone e connessione</strong><small id="deviceDetail">Controllo in corso…</small></div><span class="step-state"></span></li>
+        <li id="installStep" class="step"><span class="step-icon">2</span><div><strong>Installa SkinBridge</strong><small id="installDetail">L'helper collega Safari alle operazioni locali.</small><div class="install-actions"><button class="inline" id="installSigner" hidden>1. Prepara SideStore senza PC</button><button class="inline" id="installHelper">2. Installa SkinBridge</button></div><details id="sideStoreGuide" class="phone-guide" hidden><summary>Guida passo per passo su iPhone</summary><ol><li>Serve <strong>iOS 27 o successivo</strong> e il Wi-Fi attivo.</li><li>Installa <a href="https://apps.apple.com/app/id6755608044">LocalDevVPN dall'App Store</a>.</li><li>Tocca il primo pulsante e usa soltanto <strong>sideinstaller.net</strong>. Installa SideInstaller con uno dei certificati disponibili.</li><li>Apri <strong>Impostazioni › Generali › VPN e gestione dispositivo</strong> e autorizza il profilo indicato. Abilita la Modalità sviluppatore se viene richiesta.</li><li>Apri SideInstaller, connetti LocalDevVPN e scegli <strong>Install SideStore</strong>. Segui anche il pairing mostrato dall'app. L'eventuale accesso Apple avviene nell'app ufficiale, mai su Wallet Skins.</li><li>Autorizza il profilo di SideStore nelle Impostazioni, apri SideStore e completa il primo refresh.</li><li>Torna qui, tocca <strong>2. Installa SkinBridge</strong> e conferma dentro SideStore.</li><li>In SideStore › My Apps, tocca il contatore dei giorni di SkinBridge per rinnovarlo. Durante installazione e rinnovo lascia LocalDevVPN connessa.</li></ol><p>Se SideInstaller non si apre, il certificato pubblico scelto può essere stato revocato: torna al sito ufficiale e provane un altro.</p></details></div><span class="step-state"></span></li>
+        <li id="helperStep" class="step"><span class="step-icon">3</span><div><strong>Verifica SkinBridge</strong><small>Apriremo l'app e torneremo qui per confermare.</small><button class="inline" id="testHelper">Verifica adesso</button></div><span class="step-state"></span></li>
+        <li id="setupStep" class="step"><span class="step-icon">4</span><div><strong>Completa la preparazione</strong><small>SkinBridge ti guiderà per VPN locale e pairing.</small><button class="inline" id="openSetup">Apri guida sul telefono</button></div><span class="step-state"></span></li>
+        <li id="cardStep" class="step"><span class="step-icon">5</span><div><strong>Collega una carta</strong><small>SkinBridge ti guiderà nell'apertura di Wallet. Non leggerà numero, CVV o token.</small><button class="inline" id="scanCard">Avvia rilevamento guidato</button></div><span class="step-state"></span></li>
+      </ol>
+      <div id="onboardingNotice" class="notice" hidden></div>
+      <button class="primary" id="finishSetup" disabled>Continua alle skin <span>→</span></button>
+    </section>
+    <section class="screen" data-screen="studio">
+      <button class="back" data-go="home">‹ Esci</button>
+      <div class="studio-head"><div><p class="eyebrow">Skin studio</p><h2>Scegli il tuo stile.</h2></div><span id="studioMode" class="pill accent">Demo</span></div>
+      <div class="preview-wrap"><div id="skinPreview" class="skin-preview skin-aurora"><div class="skin-shine"></div><span class="skin-label">WALLET</span><span class="skin-number">•••• 2048</span></div><span class="preview-caption">Anteprima — nessun numero reale</span></div>
+      <fieldset class="skin-picker"><legend>Scegli una skin</legend><button class="swatch aurora selected" data-skin="aurora" aria-label="Aurora"></button><button class="swatch ember" data-skin="ember" aria-label="Ember"></button><button class="swatch tide" data-skin="tide" aria-label="Tide"></button><button class="swatch mono" data-skin="mono" aria-label="Mono"></button></fieldset>
+      <label class="field"><span id="cardFieldLabel">Nome della carta demo</span><input id="cardRef" value="La mia carta" maxlength="64" autocomplete="off"><small id="cardFieldHelp">È solo un'etichetta per la demo. Non inserire il numero della carta.</small></label>
+      <button class="primary" id="applySkin">Applica questa skin <span>→</span></button><button class="secondary danger" id="restoreSkin">Ripristina l'originale</button>
+      <div id="studioStatus" class="notice" hidden></div>
+    </section>
+    <section class="screen" data-screen="working">
+      <div class="loader" aria-hidden="true"></div><p class="eyebrow">Operazione protetta</p><h2 id="workingTitle">Preparo il job…</h2><p id="workingDetail" class="lead compact">Firma e scadenza vengono controllate prima di procedere.</p>
+      <ul class="working-list"><li class="done">Nessun dato di pagamento</li><li id="workSigned">Job firmato e temporaneo</li><li id="workExecuted">Esecuzione locale</li><li id="workCallback">Ritorno sicuro alla PWA</li></ul>
+    </section>
+  </main>
+  <footer><span>Wallet Skins POC</span><button id="privacyButton">Privacy</button></footer>
+  <dialog id="privacyDialog"><button class="dialog-close" aria-label="Chiudi">×</button><h3>Privacy per progettazione</h3><p>Non chiediamo né raccogliamo PAN, CVV, CVC, scadenza o token di pagamento. Il riferimento della carta è un'etichetta opaca. Nella demo i job rimangono nella memoria temporanea del server.</p><button class="primary dialog-ok">Ho capito</button></dialog>
+  <script type="module" src="/app.js"></script>
+</body></html>

@@ -1,0 +1,9 @@
+services:
+  wallet-skins:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"
+    volumes:
+      - ./downloads:/app/wallet-web/downloads:ro
