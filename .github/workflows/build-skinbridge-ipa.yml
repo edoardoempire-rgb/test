@@ -1,0 +1,39 @@
+name: Build SkinBridge IPA
+permissions:
+  contents: write
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "SkinBridge-iOS/**"
+      - ".github/workflows/build-skinbridge-ipa.yml"
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios,aarch64-apple-ios-sim
+      - name: Build unsigned IPA
+        run: |
+          xcodebuild -version
+          chmod +x SkinBridge-iOS/build-ipa.sh SkinBridge-iOS/build-airlift.sh
+          SkinBridge-iOS/build-ipa.sh
+          cp SkinBridge-iOS/build/SkinBridge.ipa SkinBridge-iOS/build/SkinBridge-unsigned.ipa
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SkinBridge-unsigned-ipa
+          path: SkinBridge-iOS/build/SkinBridge-unsigned.ipa
+          if-no-files-found: error
+      - name: Publish stable unsigned IPA for SideStore
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view skinbridge-latest >/dev/null 2>&1 || gh release create skinbridge-latest --title "SkinBridge latest" --notes "Unsigned IPA for on-device signing with SideStore."
+          gh release upload skinbridge-latest SkinBridge-iOS/build/SkinBridge-unsigned.ipa --clobber
