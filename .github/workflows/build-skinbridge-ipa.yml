@@ -31,7 +31,6 @@ jobs:
           path: SkinBridge-iOS/build/SkinBridge-unsigned.ipa
           if-no-files-found: error
       - name: Publish stable unsigned IPA for SideStore
-        if: github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
