@@ -229,7 +229,7 @@ async function connectPhone() {
     if (!response.ok) throw new Error(session.error || "Non riesco a preparare la connessione.");
     sessionStorage.setItem("walletBridgeSession", JSON.stringify({ id: session.id, token: session.token }));
     $("#bridgeProgress").style.width = "35%";
-    $("#bridgeInstallText").textContent = "Profilo pronto. Accetta il download, poi apri Impostazioni > Profilo scaricato e tocca Installa.";
+    $("#bridgeInstallText").textContent = "Profilo pronto. Installalo da Impostazioni > Profilo scaricato, poi attiva Wallet Skins nella sezione VPN.";
     $("#connectPhone").textContent = "Profilo scaricato";
     $("#checkPairing").disabled = false;
     clearInterval(bridgePoll);
