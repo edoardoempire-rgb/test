@@ -61,6 +61,12 @@ Su iOS 27 è supportato anche il percorso gratuito on-device: configurando
 SideStore e poi apre l'IPA con `sidestore://install`. La firma avviene sul
 telefono; Wallet Skins non riceve le credenziali Apple.
 
+Per un'esperienza con la sola app SkinBridge, senza SideStore o PC per l'utente
+finale, usare il percorso Ad Hoc firmato descritto in
+[`docs/DIRECT_IPHONE_INSTALL.md`](docs/DIRECT_IPHONE_INSTALL.md). Quando i
+segreti di firma sono configurati, la pipeline pubblica l'IPA firmata e il
+deploy passa automaticamente all'installazione OTA diretta.
+
 ## Struttura
 
 - `wallet-web`: PWA mobile-first con onboarding, demo, apply/restore e callback.
