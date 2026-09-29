@@ -236,10 +236,7 @@ export function mobileConfig({
         <key>SupplementalMatchDomains</key><array><string>${xml(discoveryDomain)}</string></array>
         <key>SupplementalMatchDomainsNoSearch</key><true/>
       </dict>
-      <key>OnDemandEnabled</key><integer>1</integer>
-      <key>OnDemandRules</key><array>
-        <dict><key>Action</key><string>Connect</string></dict>
-      </array>
+      <key>OnDemandEnabled</key><integer>0</integer>
     </dict>
   </array>
   <key>PayloadDescription</key><string>Connessione sicura per abbinare questo iPhone a Wallet Skins. Non instrada il traffico Internet.</string>
