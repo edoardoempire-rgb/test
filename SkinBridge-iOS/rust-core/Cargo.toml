@@ -6,7 +6,7 @@ description = "C FFI shim for the iOS airlift exploit — RPPairing host + AirTr
 
 [lib]
 name = "airlift_ffi"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 # idevice: RPPairing host, loopback RSD tunnel, streaming_zip_conduit, AFC.
