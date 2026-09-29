@@ -22,7 +22,7 @@ L'utente opera solo dall'iPhone:
 2. tocca **Configura SkinBridge**;
 3. segue il link di installazione;
 4. torna al sito e verifica l'helper;
-5. SkinBridge guida LocalDevVPN e pairing on-device;
+5. SkinBridge attiva il tunnel locale integrato e guida il pairing on-device;
 6. apre Wallet e seleziona la carta seguendo le istruzioni;
 7. sceglie la skin nella PWA e preme Applica.
 
