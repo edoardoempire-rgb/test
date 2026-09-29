@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
-  <style>.install-actions{display:grid;gap:8px}.phone-guide{margin-top:12px;padding:11px 12px;border:1px solid #363c49;border-radius:12px;background:#0d1017;color:#aeb6c5;font-size:12px;line-height:1.45}.phone-guide summary{color:#e4e7ed;font-weight:750;cursor:pointer}.phone-guide ol{padding-left:19px;margin:12px 0}.phone-guide li{margin:8px 0}.phone-guide p{margin:10px 0 0;color:#e5c970}.direct-pending{margin:24px 0;padding:24px 20px;border:1px solid #343b49;border-radius:20px;background:linear-gradient(145deg,#171b25,#10131a);text-align:center}.direct-icon{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:#252b37;color:#b9aaff;font-size:32px}.direct-pending strong{display:block;font-size:20px}.direct-pending p{margin:10px 0 18px;color:#aeb6c5;line-height:1.5}.direct-pending .secondary{width:100%}</style>
+  <style>.install-actions{display:grid;gap:8px}.phone-guide{margin-top:12px;padding:11px 12px;border:1px solid #363c49;border-radius:12px;background:#0d1017;color:#aeb6c5;font-size:12px;line-height:1.45}.phone-guide summary{color:#e4e7ed;font-weight:750;cursor:pointer}.phone-guide ol{padding-left:19px;margin:12px 0}.phone-guide li{margin:8px 0}.phone-guide p{margin:10px 0 0;color:#e5c970}.direct-pending{margin:24px 0;padding:24px 20px;border:1px solid #343b49;border-radius:20px;background:linear-gradient(145deg,#171b25,#10131a);text-align:center}.direct-icon{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:#252b37;color:#b9aaff;font-size:32px}.direct-pending strong{display:block;font-size:20px}.direct-pending p{margin:10px 0 18px;color:#aeb6c5;line-height:1.5}.direct-pending .secondary{width:100%}.bridge-flow{margin-top:22px}.bridge-card{padding:18px;margin:12px 0;border:1px solid #343b49;border-radius:18px;background:#11151d}.bridge-card strong{display:block;font-size:18px;margin-bottom:6px}.bridge-card p{color:#aeb6c5;line-height:1.45;margin:0 0 14px}.bridge-number{display:inline-grid;place-items:center;width:32px;height:32px;margin-bottom:12px;border-radius:50%;background:#6d5dfc;color:white;font-weight:800}.bridge-card .primary,.bridge-card .secondary{width:100%}.pair-pin{padding:16px;margin:14px 0;border:1px solid #6d5dfc;border-radius:14px;text-align:center;background:#17142a}.pair-pin span{display:block;color:#aaa2d8;font-size:12px}.pair-pin strong{font-size:34px;letter-spacing:6px}.bridge-small{font-size:12px;color:#8992a4}.bridge-ok{color:#8ee6ad!important}</style>
   <title>Wallet Skins</title>
 </head>
 <body>
@@ -24,7 +24,7 @@
       <p class="lead">Ti accompagniamo in ogni passaggio. Nessun dato della carta viene richiesto.</p>
       <div class="actions">
         <button class="primary" id="startDemo">Prova la demo guidata <span>→</span></button>
-        <button class="secondary" id="startNative">Configura SkinBridge</button>
+        <button class="secondary" id="startNative">Configura iPhone</button>
       </div>
       <div class="trust-row"><span>✓ Job firmati</span><span>✓ Operazioni confermate</span><span>✓ Nessun PAN o CVV</span></div>
     </section>
@@ -37,6 +37,24 @@
         <strong>Installazione diretta in preparazione</strong>
         <p>SkinBridge non è ancora firmata per questo iPhone. Non ti chiederemo di installare altre app o certificati pubblici.</p>
         <button class="secondary" id="retryDirect">Ricontrolla disponibilità</button>
+      </div>
+      <div id="serverBridgeFlow" class="bridge-flow" hidden>
+        <div class="progress"><span id="bridgeProgress"></span></div>
+        <article class="bridge-card">
+          <span class="bridge-number">1</span>
+          <strong>Collega questo iPhone</strong>
+          <p id="bridgeInstallText">Scarica la connessione privata Wallet Skins. iPhone ti chiederà di autorizzarla.</p>
+          <button class="primary" id="connectPhone">Collega iPhone <span>→</span></button>
+        </article>
+        <article class="bridge-card">
+          <span class="bridge-number">2</span>
+          <strong>Abbina in sicurezza</strong>
+          <p id="bridgePairText">Dopo l'installazione apri Impostazioni, scegli Wallet Skins Gateway e conferma il codice.</p>
+          <div id="pairPin" class="pair-pin" hidden><span>Codice da inserire su iPhone</span><strong id="pairPinValue">••••••</strong></div>
+          <button class="secondary" id="checkPairing" disabled>Controlla abbinamento</button>
+          <p class="bridge-small">Nessuna app aggiuntiva. Nessun numero, CVV o token della carta viene letto.</p>
+        </article>
+        <div id="bridgeNotice" class="notice" hidden></div>
       </div>
       <div id="onboardingFlow">
         <div class="progress"><span id="progressBar"></span></div>
