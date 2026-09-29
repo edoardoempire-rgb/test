@@ -2,12 +2,16 @@ name: Deploy Wallet Skins VPS
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build SkinBridge IPA"]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -28,6 +32,16 @@ jobs:
           test -n "$VPS_HOST"
           test -n "$VPS_USER"
 
+          SIGNED_IPA_URL="https://github.com/edoardoempire-rgb/test/releases/download/skinbridge-latest/SkinBridge-signed.ipa"
+          UNSIGNED_IPA_URL="https://github.com/edoardoempire-rgb/test/releases/download/skinbridge-latest/SkinBridge-unsigned.ipa"
+          if curl --fail --location --silent --head "$SIGNED_IPA_URL" >/dev/null; then
+            SKINBRIDGE_IPA_URL="$SIGNED_IPA_URL"
+            SKINBRIDGE_SIDELOAD_IPA_URL=""
+          else
+            SKINBRIDGE_IPA_URL=""
+            SKINBRIDGE_SIDELOAD_IPA_URL="$UNSIGNED_IPA_URL"
+          fi
+
           SSH_OPTIONS="-o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 -o ServerAliveInterval=15"
           sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
             'apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y rsync && install -d -m 0755 /opt/wallet-skins'
@@ -40,7 +54,7 @@ jobs:
             -e "ssh $SSH_OPTIONS" \
             ./ "$VPS_USER@$VPS_HOST:/opt/wallet-skins/"
 
-          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" 'cat > /opt/wallet-skins/.env' <<'ENV_FILE'
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" "cat > /opt/wallet-skins/.env" <<ENV_FILE
           PORT=8787
           DOMAIN=wallet.82-165-176-79.sslip.io
           PUBLIC_BASE_URL=https://wallet.82-165-176-79.sslip.io
@@ -49,8 +63,8 @@ jobs:
           ALLOW_WEB_DEMO=true
           EXECUTOR_MODE=airlift
           HELPER_INSTALL_URL=
-          SKINBRIDGE_IPA_URL=
-          SKINBRIDGE_SIDELOAD_IPA_URL=https://github.com/edoardoempire-rgb/test/releases/download/skinbridge-latest/SkinBridge-unsigned.ipa
+          SKINBRIDGE_IPA_URL=$SKINBRIDGE_IPA_URL
+          SKINBRIDGE_SIDELOAD_IPA_URL=$SKINBRIDGE_SIDELOAD_IPA_URL
           SIDESTORE_SETUP_URL=https://sideinstaller.net/
           SKINBRIDGE_BUNDLE_ID=com.walletskins.skinbridge
           SKINBRIDGE_VERSION=0.1.0
