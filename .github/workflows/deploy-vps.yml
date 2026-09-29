@@ -88,7 +88,7 @@ jobs:
           ENV_FILE
 
           sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
-            'printf "\nSERVER_BRIDGE_ENABLED=true\nSERVER_BRIDGE_BINARY=/app/bin/airlift-gateway\nSERVER_BRIDGE_STATE_DIR=/var/lib/wallet-skins-bridge\nSERVER_BRIDGE_BIND=0.0.0.0\nSERVER_BRIDGE_PAIR_PORT=49153\nSERVER_BRIDGE_DOMAIN=wallet.internal\nSERVER_BRIDGE_ADDRESS=10.66.0.1\nSERVER_BRIDGE_DNS_BIND=10.66.0.1\nSERVER_BRIDGE_DNS_PORT=53\nSERVER_BRIDGE_DEVICE_ENDPOINT=10.66.0.2:49152\n" >> /opt/wallet-skins/.env && cat /etc/wallet-skins/bridge.env >> /opt/wallet-skins/.env && chmod 0600 /opt/wallet-skins/.env'
+            'printf "\nSERVER_BRIDGE_ENABLED=true\nSERVER_BRIDGE_BINARY=/app/bin/airlift-gateway\nSERVER_BRIDGE_STATE_DIR=/var/lib/wallet-skins-bridge\nSERVER_BRIDGE_BIND=0.0.0.0\nSERVER_BRIDGE_PAIR_PORT=49153\nSERVER_BRIDGE_DOMAIN=wallet.internal\nSERVER_BRIDGE_ADDRESS=10.66.0.1\nSERVER_BRIDGE_DNS_BIND=10.66.0.1\nSERVER_BRIDGE_DNS_PORT=53\nSERVER_BRIDGE_DNS_UPSTREAM=1.1.1.1\nSERVER_BRIDGE_DEVICE_ENDPOINT=10.66.0.2:49152\n" >> /opt/wallet-skins/.env && cat /etc/wallet-skins/bridge.env >> /opt/wallet-skins/.env && chmod 0600 /opt/wallet-skins/.env'
 
           sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
             'chmod +x /opt/wallet-skins/scripts/deploy-vps.sh && cd /opt/wallet-skins && ./scripts/deploy-vps.sh'
