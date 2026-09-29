@@ -356,6 +356,18 @@ export class ServerBridge {
     return session ? publicSession(session) : null;
   }
 
+  cancel(id, token) {
+    const session = this.get(id, token);
+    if (!session) return false;
+    session.state = "cancelled";
+    session.child?.kill("SIGTERM");
+    if (this.active === session) {
+      this.active = null;
+      this.discovery = null;
+    }
+    return true;
+  }
+
   profile(id, token) {
     const session = this.get(id, token);
     if (!session || session.state === "expired") return null;
