@@ -3,7 +3,10 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
-    ports:
-      - "127.0.0.1:8787:8787"
+    network_mode: host
     volumes:
       - ./downloads:/app/wallet-web/downloads:ro
+      - wallet-bridge-state:/var/lib/wallet-skins-bridge
+
+volumes:
+  wallet-bridge-state:
