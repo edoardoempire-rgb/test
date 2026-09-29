@@ -94,4 +94,11 @@ jobs:
             'chmod +x /opt/wallet-skins/scripts/deploy-vps.sh && cd /opt/wallet-skins && ./scripts/deploy-vps.sh'
 
       - name: Verify public health endpoint
-        run: curl --fail --show-error --silent --retry 10 --retry-delay 6 https://wallet.82-165-176-79.sslip.io/health
+        run: |
+          curl --fail --show-error --silent --retry 10 --retry-delay 6 https://wallet.82-165-176-79.sslip.io/health >/dev/null
+          export SESSION_JSON="$(curl --fail --show-error --silent --request POST https://wallet.82-165-176-79.sslip.io/v1/server-bridge/sessions)"
+          SESSION_ID="$(node -e 'const v=JSON.parse(process.env.SESSION_JSON); if(v.state!=="profile_ready") process.exit(2); process.stdout.write(v.id)' )"
+          SESSION_TOKEN="$(node -e 'const v=JSON.parse(process.env.SESSION_JSON); process.stdout.write(v.token)' )"
+          PROFILE_URL="$(node -e 'const v=JSON.parse(process.env.SESSION_JSON); process.stdout.write(v.profileUrl)' )"
+          curl --fail --show-error --silent "$PROFILE_URL" | grep -q '<string>IKEv2</string>'
+          curl --fail --show-error --silent --request DELETE "https://wallet.82-165-176-79.sslip.io/v1/server-bridge/sessions/$SESSION_ID?token=$SESSION_TOKEN" >/dev/null
