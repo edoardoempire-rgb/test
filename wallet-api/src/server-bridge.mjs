@@ -244,6 +244,7 @@ function publicSession(session) {
     profileUrl: session.profileUrl,
     pin: session.pin || null,
     deviceName: session.deviceName || null,
+    compatible: session.compatible ?? null,
     error: session.error || null
   };
 }
@@ -297,7 +298,7 @@ export class ServerBridge {
     child.stderr.on("data", chunk => String(chunk).split(/\r?\n/).filter(Boolean).forEach(consume));
     child.on("error", error => { session.state = "error"; session.error = error.message; });
     child.on("exit", code => {
-      if (session.state !== "paired" && session.state !== "expired") {
+      if (!["paired", "checking", "ready", "expired", "cancelled"].includes(session.state)) {
         session.state = "error";
         session.error ||= `gateway exited with code ${code}${session.lastLog ? `: ${session.lastLog}` : ""}`;
       }
@@ -307,7 +308,7 @@ export class ServerBridge {
   }
 
   #line(session, line) {
-    const match = line.match(/^(GATEWAY_READY|GATEWAY_PIN|PAIRING_COMPLETE|PAIRING_ERROR)\s+(\{.*\})$/);
+    const match = line.match(/^(GATEWAY_READY|GATEWAY_PIN|PAIRING_COMPLETE|PAIRING_ERROR|PROBE_COMPLETE|PROBE_ERROR)\s+(\{.*\})$/);
     if (!match) {
       const safeLine = line.trim().replaceAll(/[\r\n]/g, " ").slice(0, 500);
       if (safeLine) session.lastLog = safeLine;
@@ -326,10 +327,51 @@ export class ServerBridge {
       session.state = "paired";
       session.deviceName = value.deviceName;
       session.deviceUdid = value.deviceUdid;
+      this.#probe(session);
+    } else if (match[1] === "PROBE_COMPLETE") {
+      session.state = "ready";
+      session.compatible = true;
+    } else if (match[1] === "PROBE_ERROR") {
+      session.state = "error";
+      session.compatible = false;
+      session.error = value.error || "compatibility check failed";
     } else {
       session.state = "error";
       session.error = value.error || "pairing failed";
     }
+  }
+
+  #probe(session) {
+    session.state = "checking";
+    const child = spawn(this.options.binary, ["probe", session.pairingPath, this.options.deviceEndpoint], {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: { ...process.env, RUST_LOG: "info" }
+    });
+    session.probeChild = child;
+    let output = "";
+    const consume = line => this.#line(session, line);
+    const receive = chunk => {
+      output += chunk;
+      const lines = output.split(/\r?\n/);
+      output = lines.pop() || "";
+      lines.forEach(consume);
+    };
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", receive);
+    child.stderr.on("data", receive);
+    child.on("error", error => {
+      session.state = "error";
+      session.compatible = false;
+      session.error = error.message;
+    });
+    child.on("exit", code => {
+      if (session.state === "checking") {
+        session.state = "error";
+        session.compatible = false;
+        session.error = `compatibility check exited with code ${code}${session.lastLog ? `: ${session.lastLog}` : ""}`;
+      }
+    });
   }
 
   async #waitReady(session) {
@@ -365,6 +407,7 @@ export class ServerBridge {
     if (!session) return false;
     session.state = "cancelled";
     session.child?.kill("SIGTERM");
+    session.probeChild?.kill("SIGTERM");
     if (this.active === session) {
       this.active = null;
       this.discovery = null;
