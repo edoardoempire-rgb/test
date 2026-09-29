@@ -3,11 +3,6 @@ permissions:
   contents: write
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "SkinBridge-iOS/**"
-      - ".github/workflows/build-skinbridge-ipa.yml"
 jobs:
   build:
     runs-on: xcode-27
@@ -31,10 +26,11 @@ jobs:
           IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
           IOS_MOBILEPROVISION_BASE64: ${{ secrets.IOS_MOBILEPROVISION_BASE64 }}
+          IOS_TUNNEL_MOBILEPROVISION_BASE64: ${{ secrets.IOS_TUNNEL_MOBILEPROVISION_BASE64 }}
         run: |
-          if [ -z "$IOS_CERTIFICATE_P12_BASE64" ] || [ -z "$IOS_MOBILEPROVISION_BASE64" ]; then
+          if [ -z "$IOS_CERTIFICATE_P12_BASE64" ] || [ -z "$IOS_MOBILEPROVISION_BASE64" ] || [ -z "$IOS_TUNNEL_MOBILEPROVISION_BASE64" ]; then
             echo "signed=false" >> "$GITHUB_OUTPUT"
-            echo "Signing credentials are not configured; keeping the SideStore test build."
+            echo "App and integrated-tunnel signing credentials are not configured; publishing only the unsigned test build."
             exit 0
           fi
 
@@ -44,6 +40,7 @@ jobs:
           mkdir -p "$SIGNING_DIRECTORY"
           printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 -D > "$SIGNING_DIRECTORY/distribution.p12"
           printf '%s' "$IOS_MOBILEPROVISION_BASE64" | base64 -D > "$SIGNING_DIRECTORY/SkinBridge.mobileprovision"
+          printf '%s' "$IOS_TUNNEL_MOBILEPROVISION_BASE64" | base64 -D > "$SIGNING_DIRECTORY/SkinBridgeTunnel.mobileprovision"
 
           security create-keychain -p "$SIGNING_KEYCHAIN_PASSWORD" "$SIGNING_KEYCHAIN"
           security set-keychain-settings -lut 21600 "$SIGNING_KEYCHAIN"
@@ -56,6 +53,7 @@ jobs:
             SkinBridge-iOS/build/SkinBridge-unsigned.ipa \
             "$SIGNING_DIRECTORY/distribution.p12" \
             "$SIGNING_DIRECTORY/SkinBridge.mobileprovision" \
+            "$SIGNING_DIRECTORY/SkinBridgeTunnel.mobileprovision" \
             "$SIGNING_KEYCHAIN" \
             SkinBridge-iOS/build/SkinBridge-signed.ipa
 
