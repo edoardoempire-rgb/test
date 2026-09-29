@@ -189,14 +189,29 @@ async function refreshBridge() {
       $("#bridgeProgress").style.width = status.state === "ready" ? "100%" : ["paired", "checking"].includes(status.state) ? "90%" : status.state === "pin_ready" ? "75%" : "50%";
       $("#checkPairing").disabled = false;
     }
+    if (status.state === "profile_ready") {
+      $("#bridgePairText").textContent = status.discoverySeenAt
+        ? "L’iPhone vede il gateway. Apri Impostazioni → Privacy e sicurezza → Modalità sviluppatore e seleziona Pair with Wallet Skins Gateway."
+        : "La VPN è pronta. Ora apri Impostazioni → Privacy e sicurezza → Modalità sviluppatore e seleziona Pair with Wallet Skins Gateway.";
+      notice(
+        "#bridgeNotice",
+        status.discoverySeenAt
+          ? "Gateway trovato dall’iPhone: completa la conferma nelle Impostazioni."
+          : "Controllo riuscito: il server è in attesa che l’iPhone avvii l’abbinamento dalle Impostazioni.",
+        "info"
+      );
+      $("#checkPairing").textContent = status.discoverySeenAt ? "Gateway trovato ✓" : "In attesa dell’iPhone…";
+    }
     if (status.state === "pin_ready") {
       $("#pairPin").hidden = false;
       $("#pairPinValue").textContent = status.pin;
       $("#bridgePairText").textContent = "Inserisci questo codice nella richiesta mostrata da iPhone.";
+      $("#checkPairing").textContent = "Conferma il codice su iPhone";
     }
     if (["paired", "checking"].includes(status.state)) {
       $("#pairPin").hidden = true;
       $("#bridgePairText").textContent = `${status.deviceName || "iPhone"} abbinato. Controllo la compatibilità…`;
+      $("#checkPairing").textContent = "Controllo compatibilità…";
     }
     if (status.state === "ready") {
       clearInterval(bridgePoll);
