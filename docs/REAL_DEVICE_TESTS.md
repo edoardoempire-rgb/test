@@ -13,7 +13,7 @@
 
 - Rilevamento carta e lettura degli artwork originali.
 - Scrittura AirTraffic/Passbook e invalidazione cache.
-- Verifica effettiva di LocalDevVPN.
+- Verifica effettiva del Packet Tunnel Provider integrato.
 
 Il build reale usa `al_syslog_stream_start` per il rilevamento,
 `al_exploit_read_file` per acquisire e ripristinare immediatamente l'artwork
@@ -38,7 +38,8 @@ della sorgente prima e dopo il backup.
 1. Compilare su iPhone arm64 con il framework importato e relative attribuzioni.
 2. Verificare la versione iOS contro la matrice upstream (attualmente dichiarata
    iOS 27+) e annotare modello/build esatti.
-3. Installare/attivare LocalDevVPN e controllare il percorso loopback.
+3. Accettare la richiesta VPN di SkinBridge e controllare il percorso loopback
+   integrato su `10.7.0.1`.
 4. Eseguire il pairing on-device da Developer Mode; riavviare e verificare che
    persista senza Mac.
 5. Testare la read primitive già implementata, confrontando hash e dimensioni
