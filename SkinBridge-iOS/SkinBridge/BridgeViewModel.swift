@@ -73,17 +73,19 @@ import Combine
         let check = await executor.compatibility()
         let mock = executor.name == "mock"
         let state = localSetupState()
+        let managedTunnel = mock ? true : await LocalTunnelManager.shared.isConnected()
+        let integratedTunnel = mock || state.vpn || managedTunnel
         setupItems = [
             SetupItem(id: "helper", title: "SkinBridge", detail: "Installato e raggiungibile da Safari.", ready: true),
             SetupItem(id: "signature", title: "Sicurezza job", detail: "Verifica Ed25519 e scadenza attive.", ready: true),
-            SetupItem(id: "vpn", title: "VPN locale", detail: mock ? "Non necessaria nella demo mock." : state.vpn ? "LocalDevVPN attiva." : "SkinBridge aprirà LocalDevVPN per te.", ready: state.vpn),
+            SetupItem(id: "vpn", title: "Collegamento locale", detail: mock ? "Non necessario nella demo mock." : integratedTunnel ? "Tunnel integrato attivo; il traffico resta sull'iPhone." : "SkinBridge richiederà una sola autorizzazione VPN.", ready: integratedTunnel),
             SetupItem(id: "pairing", title: "Pairing iPhone", detail: mock ? "Non necessario nella demo mock." : state.paired ? "Pairing locale già disponibile." : "SkinBridge avvierà il pairing e aprirà le Impostazioni.", ready: state.paired)
         ]
         setupReady = mock || check.supported
         setupActionEnabled = platformSupported
-        setupActionTitle = !platformSupported ? "iOS non compatibile" : setupReady ? (onboardingMode ? "Continua alla carta" : "Torna a Safari") : !state.vpn ? "Attiva LocalDevVPN" : !state.paired ? "Avvia pairing guidato" : "Ricontrolla automaticamente"
+        setupActionTitle = !platformSupported ? "iOS non compatibile" : setupReady ? (onboardingMode ? "Continua alla carta" : "Torna a Safari") : !integratedTunnel ? "Autorizza e continua" : !state.paired ? "Avvia pairing guidato" : "Ricontrolla automaticamente"
         headline = setupReady ? "iPhone pronto" : "Completa la preparazione"
-        detail = !platformSupported ? check.reason : setupReady ? (onboardingMode ? "La preparazione è completa. Ora colleghiamo la carta." : "Puoi tornare a Safari.") : !state.vpn ? "Tocca il pulsante: apriremo LocalDevVPN. Attivala e torna qui; SkinBridge riprenderà da sola." : !state.paired ? "La VPN è attiva. Avvia il pairing: apriremo le Impostazioni e ti mostreremo il codice da confermare." : check.reason
+        detail = !platformSupported ? check.reason : setupReady ? (onboardingMode ? "La preparazione è completa. Ora colleghiamo la carta." : "Puoi tornare a Safari.") : !integratedTunnel ? "Tocca il pulsante e accetta la richiesta VPN di iOS. Non verrà installata un'altra app." : !state.paired ? "Il collegamento locale è attivo. Avvia il pairing: apriremo le Impostazioni e ti mostreremo il codice da confermare." : check.reason
         busy = false
     }
 
@@ -99,8 +101,7 @@ import Combine
             return
         }
         if !state.vpn {
-            detail = "In LocalDevVPN attiva il collegamento, poi torna a SkinBridge. Riprenderemo automaticamente."
-            openLocalDevVPN()
+            startIntegratedTunnel()
             return
         }
         if !state.paired {
@@ -132,8 +133,22 @@ import Combine
         UIApplication.shared.open(callback)
     }
 
-    func openLocalDevVPN() {
-        if let url = URL(string: "localdevvpn://") { UIApplication.shared.open(url) }
+    func startIntegratedTunnel() {
+        busy = true
+        headline = "Attivo il collegamento locale"
+        detail = "Accetta la richiesta VPN di iOS. Il tunnel resta interamente sul tuo iPhone."
+        Task {
+            do {
+                try await LocalTunnelManager.shared.start()
+                await refreshSetup()
+                if setupReady && onboardingMode { advanceToCardScan() }
+                else if localSetupState().vpn && !localSetupState().paired { startPairing() }
+            } catch {
+                busy = false
+                headline = "Autorizzazione necessaria"
+                detail = error.localizedDescription
+            }
+        }
     }
 
     func openAppSettings() {
