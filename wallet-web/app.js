@@ -175,8 +175,8 @@ async function refreshBridge() {
     const response = await fetch(`/v1/server-bridge/sessions/${encodeURIComponent(session.id)}?token=${encodeURIComponent(session.token)}`);
     const status = await response.json();
     if (!response.ok) throw new Error(status.error || "La sessione è scaduta.");
-    if (["profile_ready", "pin_ready", "paired"].includes(status.state)) {
-      $("#bridgeProgress").style.width = status.state === "paired" ? "100%" : status.state === "pin_ready" ? "75%" : "50%";
+    if (["profile_ready", "pin_ready", "paired", "checking", "ready"].includes(status.state)) {
+      $("#bridgeProgress").style.width = status.state === "ready" ? "100%" : ["paired", "checking"].includes(status.state) ? "90%" : status.state === "pin_ready" ? "75%" : "50%";
       $("#checkPairing").disabled = false;
     }
     if (status.state === "pin_ready") {
@@ -184,13 +184,17 @@ async function refreshBridge() {
       $("#pairPinValue").textContent = status.pin;
       $("#bridgePairText").textContent = "Inserisci questo codice nella richiesta mostrata da iPhone.";
     }
-    if (status.state === "paired") {
+    if (["paired", "checking"].includes(status.state)) {
+      $("#pairPin").hidden = true;
+      $("#bridgePairText").textContent = `${status.deviceName || "iPhone"} abbinato. Controllo la compatibilità…`;
+    }
+    if (status.state === "ready") {
       clearInterval(bridgePoll);
       $("#pairPin").hidden = true;
-      $("#bridgePairText").textContent = `${status.deviceName || "iPhone"} abbinato correttamente.`;
+      $("#bridgePairText").textContent = `${status.deviceName || "iPhone"} pronto e compatibile.`;
       $("#bridgePairText").classList.add("bridge-ok");
-      notice("#bridgeNotice", "Abbinamento riuscito. Ora possiamo controllare la compatibilità senza installare app.", "info");
-      $("#checkPairing").textContent = "iPhone collegato ✓";
+      notice("#bridgeNotice", "Collegamento verificato. Wallet Skins può comunicare con questo iPhone senza installare app.", "info");
+      $("#checkPairing").textContent = "iPhone pronto ✓";
       $("#checkPairing").disabled = true;
     } else if (status.state === "error" || status.state === "expired") {
       clearInterval(bridgePoll);
