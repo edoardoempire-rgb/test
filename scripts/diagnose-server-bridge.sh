@@ -13,6 +13,18 @@ else
   echo "iphone_vpn_session=none"
 fi
 
+diag_log="$(mktemp)"
+trap 'rm -f "$diag_log"' EXIT
+journalctl -u strongswan.service --since '-10 minutes' --no-pager -o cat > "$diag_log" 2>/dev/null || true
+count_pattern() {
+  local pattern="$1"
+  grep -Eic "$pattern" "$diag_log" 2>/dev/null || true
+}
+echo "ike_packets_received=$(count_pattern 'received packet|IKE_SA_INIT request')"
+echo "ike_auth_failures=$(count_pattern 'authentication.*failed|EAP.*failed')"
+echo "ike_proposal_failures=$(count_pattern 'no proposal chosen|NO_PROPOSAL_CHOSEN')"
+echo "ike_connections_established=$(count_pattern 'IKE_SA.*established|CHILD_SA.*established')"
+
 python3 - <<'PY'
 import socket, struct
 
