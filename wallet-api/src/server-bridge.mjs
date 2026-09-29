@@ -124,9 +124,10 @@ export function answerDiscoveryQuery(packet, discovery, { domain = "wallet.inter
   } else if (question.name === target && (type === 1 || type === 255)) {
     answers.push(dnsRecord(target, 1, ipv4(address)));
   }
+  if (!answers.length && !additional.length) return null;
   const header = Buffer.alloc(12);
   packet.copy(header, 0, 0, 2);
-  header.writeUInt16BE(answers.length || additional.length ? 0x8500 : 0x8503, 2);
+  header.writeUInt16BE(0x8500, 2);
   header.writeUInt16BE(1, 4);
   header.writeUInt16BE(answers.length, 6);
   header.writeUInt16BE(0, 8);
@@ -134,11 +135,23 @@ export function answerDiscoveryQuery(packet, discovery, { domain = "wallet.inter
   return Buffer.concat([header, packet.subarray(12, questionEnd), ...answers, ...additional]);
 }
 
-export function startDiscoveryDns(bridge, { bind = "10.66.0.1", port = 53, domain = "wallet.internal", address = bind } = {}) {
+export function startDiscoveryDns(bridge, { bind = "10.66.0.1", port = 53, domain = "wallet.internal", address = bind, upstreamAddress = "1.1.1.1" } = {}) {
   const socket = dgram.createSocket("udp4");
   socket.on("message", (packet, remote) => {
     const answer = answerDiscoveryQuery(packet, bridge.discovery, { domain, address });
-    if (answer) socket.send(answer, remote.port, remote.address);
+    if (answer) {
+      socket.send(answer, remote.port, remote.address);
+      return;
+    }
+    const upstream = dgram.createSocket("udp4");
+    const close = () => { try { upstream.close(); } catch {} };
+    const timer = setTimeout(close, 2500);
+    upstream.once("message", response => {
+      clearTimeout(timer);
+      socket.send(response, remote.port, remote.address, close);
+    });
+    upstream.once("error", () => { clearTimeout(timer); close(); });
+    upstream.send(packet, 53, upstreamAddress);
   });
   socket.on("error", error => {
     bridge.dnsError = error.message;
@@ -201,6 +214,9 @@ export function mobileConfig({
         <key>DisableRedirect</key><integer>0</integer>
         <key>EnableCertificateRevocationCheck</key><integer>0</integer>
         <key>EnablePFS</key><integer>1</integer>
+        <key>IncludeAllNetworks</key><integer>0</integer>
+        <key>EnforceRoutes</key><integer>0</integer>
+        <key>ExcludeLocalNetworks</key><integer>1</integer>
         <key>IKESecurityAssociationParameters</key><dict>
           <key>EncryptionAlgorithm</key><string>AES-256-GCM</string>
           <key>IntegrityAlgorithm</key><string>SHA2-256</string>
@@ -218,6 +234,7 @@ export function mobileConfig({
       <key>DNS</key><dict>
         <key>ServerAddresses</key><array><string>${xml(dnsAddress)}</string></array>
         <key>SupplementalMatchDomains</key><array><string>${xml(discoveryDomain)}</string></array>
+        <key>SupplementalMatchDomainsNoSearch</key><true/>
       </dict>
       <key>OnDemandEnabled</key><integer>1</integer>
       <key>OnDemandRules</key><array>
