@@ -69,6 +69,21 @@ function readDnsName(packet, start) {
   return { name: labels.join(".").toLowerCase(), end };
 }
 
+function readDnsQuestion(packet) {
+  if (!Buffer.isBuffer(packet) || packet.length < 12 || packet.readUInt16BE(4) !== 1) return null;
+  try {
+    const question = readDnsName(packet, 12);
+    if (question.end + 4 > packet.length) return null;
+    return {
+      name: question.name,
+      end: question.end + 4,
+      type: packet.readUInt16BE(question.end)
+    };
+  } catch {
+    return null;
+  }
+}
+
 function dnsRecord(name, type, value, ttl = 10) {
   const header = Buffer.alloc(10);
   header.writeUInt16BE(type, 0);
@@ -96,18 +111,29 @@ function txtData(txt = {}) {
 }
 
 export function answerDiscoveryQuery(packet, discovery, { domain = "wallet.internal", address = "10.66.0.1" } = {}) {
-  if (!Buffer.isBuffer(packet) || packet.length < 12 || packet.readUInt16BE(4) !== 1) return null;
-  let question;
-  try { question = readDnsName(packet, 12); } catch { return null; }
-  if (question.end + 4 > packet.length) return null;
-  const type = packet.readUInt16BE(question.end);
-  const questionEnd = question.end + 4;
+  const question = readDnsQuestion(packet);
+  if (!question) return null;
+  const { type } = question;
+  const questionEnd = question.end;
   const service = `_remotepairing-pairable-host._tcp.${domain}`.toLowerCase();
   const instance = `${discovery?.serviceId || ""}.${service}`.toLowerCase();
   const target = `gateway.${domain}`.toLowerCase();
+  const serviceTypes = `_services._dns-sd._udp.${domain}`.toLowerCase();
+  const domainEnumeration = new Set([
+    `b._dns-sd._udp.${domain}`,
+    `db._dns-sd._udp.${domain}`,
+    `lb._dns-sd._udp.${domain}`,
+    "b._dns-sd._udp.0.66.10.in-addr.arpa",
+    "db._dns-sd._udp.0.66.10.in-addr.arpa",
+    "lb._dns-sd._udp.0.66.10.in-addr.arpa"
+  ].map(value => value.toLowerCase()));
   const answers = [];
   const additional = [];
-  if (discovery && question.name === service && (type === 12 || type === 255)) {
+  if (question.name === serviceTypes && (type === 12 || type === 255)) {
+    answers.push(dnsRecord(serviceTypes, 12, dnsName(service)));
+  } else if (domainEnumeration.has(question.name) && (type === 12 || type === 255)) {
+    answers.push(dnsRecord(question.name, 12, dnsName(domain)));
+  } else if (discovery && question.name === service && (type === 12 || type === 255)) {
     answers.push(dnsRecord(service, 12, dnsName(instance)));
     const srv = Buffer.alloc(6);
     srv.writeUInt16BE(Number(discovery.port), 4);
@@ -140,6 +166,7 @@ export function startDiscoveryDns(bridge, { bind = "10.66.0.1", port = 53, domai
   socket.on("message", (packet, remote) => {
     const answer = answerDiscoveryQuery(packet, bridge.discovery, { domain, address });
     if (answer) {
+      bridge.noteDiscoveryQuery?.(readDnsQuestion(packet)?.name);
       socket.send(answer, remote.port, remote.address);
       return;
     }
@@ -233,8 +260,9 @@ export function mobileConfig({
       <key>IPv4</key><dict><key>OverridePrimary</key><integer>0</integer></dict>
       <key>DNS</key><dict>
         <key>ServerAddresses</key><array><string>${xml(dnsAddress)}</string></array>
+        <key>SearchDomains</key><array><string>${xml(discoveryDomain)}</string></array>
         <key>SupplementalMatchDomains</key><array><string>${xml(discoveryDomain)}</string></array>
-        <key>SupplementalMatchDomainsNoSearch</key><true/>
+        <key>SupplementalMatchDomainsNoSearch</key><false/>
       </dict>
       <key>OnDemandEnabled</key><integer>0</integer>
     </dict>
@@ -259,6 +287,8 @@ function publicSession(session) {
     pin: session.pin || null,
     deviceName: session.deviceName || null,
     compatible: session.compatible ?? null,
+    discoverySeenAt: session.discoverySeenAt || null,
+    discoveryQuery: session.discoveryQuery || null,
     error: session.error || null
   };
 }
@@ -274,6 +304,12 @@ export class ServerBridge {
   configured() {
     const o = this.options;
     return Boolean(o.enabled && o.binary && o.vpnUsername && o.vpnPassword && o.caCertificateBase64);
+  }
+
+  noteDiscoveryQuery(name) {
+    if (!this.active || !name) return;
+    this.active.discoverySeenAt = new Date().toISOString();
+    this.active.discoveryQuery = name;
   }
 
   async create(publicBaseUrl) {
