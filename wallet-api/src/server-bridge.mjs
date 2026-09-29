@@ -299,7 +299,7 @@ export class ServerBridge {
     child.on("exit", code => {
       if (session.state !== "paired" && session.state !== "expired") {
         session.state = "error";
-        session.error ||= `gateway exited with code ${code}`;
+        session.error ||= `gateway exited with code ${code}${session.lastLog ? `: ${session.lastLog}` : ""}`;
       }
     });
     await this.#waitReady(session);
@@ -308,7 +308,11 @@ export class ServerBridge {
 
   #line(session, line) {
     const match = line.match(/^(GATEWAY_READY|GATEWAY_PIN|PAIRING_COMPLETE|PAIRING_ERROR)\s+(\{.*\})$/);
-    if (!match) return;
+    if (!match) {
+      const safeLine = line.trim().replaceAll(/[\r\n]/g, " ").slice(0, 500);
+      if (safeLine) session.lastLog = safeLine;
+      return;
+    }
     let value;
     try { value = JSON.parse(match[2]); } catch { return; }
     if (match[1] === "GATEWAY_READY") {
