@@ -14,6 +14,31 @@ else
   echo "iphone_vpn_session=none"
 fi
 
+# Check whether iOS exposes a pairing transport through the VPN. If lockdown
+# (62078) or Remote Service Discovery (58783) is reachable, the VPS may be able
+# to perform the initial trust/pairing flow without Xcode or a local computer.
+iphone_vpn_address="10.66.0.2"
+if ip route get "$iphone_vpn_address" >/dev/null 2>&1; then
+  echo "iphone_vpn_route=ready"
+else
+  echo "iphone_vpn_route=missing"
+fi
+
+probe_tcp() {
+  local label="$1"
+  local port="$2"
+  if timeout 2 bash -c 'exec 3<>"/dev/tcp/$1/$2"' _ "$iphone_vpn_address" "$port" 2>/dev/null; then
+    echo "${label}=open"
+  else
+    echo "${label}=closed_or_filtered"
+  fi
+}
+
+probe_tcp "iphone_lockdown_62078" 62078
+probe_tcp "iphone_rsd_58783" 58783
+probe_tcp "iphone_dynamic_49151" 49151
+probe_tcp "iphone_dynamic_49152" 49152
+
 diag_log="$(mktemp)"
 trap 'rm -f "$diag_log"' EXIT
 journalctl -u strongswan.service --since '-10 minutes' --no-pager -o cat > "$diag_log" 2>/dev/null || true
