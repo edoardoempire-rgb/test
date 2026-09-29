@@ -58,7 +58,7 @@ final class PacketTunnelProvider: NEPacketTunnelProvider {
     }
 
     private func ipValue(_ address: String) -> UInt32 {
-        let octets = address.split(separator: ".").compactMap(UInt32.init)
+        let octets = address.split(separator: ".").compactMap { UInt32(String($0)) }
         guard octets.count == 4 else { return 0 }
         return (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3]
     }
