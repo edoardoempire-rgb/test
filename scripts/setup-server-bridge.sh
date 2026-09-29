@@ -89,7 +89,6 @@ connections {
 pools {
   wallet-skins {
     addrs = 10.66.0.2-10.66.0.254
-    dns = 10.66.0.1
   }
 }
 secrets {
