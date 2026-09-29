@@ -113,6 +113,33 @@ pub unsafe extern "C" fn al_exploit_run(
     }
 }
 
+/// Verify an authenticated connection to the paired iPhone without writing any
+/// Wallet or filesystem data. A server process can set
+/// `AIRLIFT_DEVICE_ENDPOINT` before invoking this function.
+///
+/// # Safety
+/// All pointer arguments must be null or valid for their documented use.
+#[no_mangle]
+pub unsafe extern "C" fn al_probe_device(
+    pairing_path: *const c_char,
+    log_cb: exploit::ALLogCallback,
+    ctx: *mut c_void,
+    out_error: *mut *mut c_char,
+) -> i32 {
+    let res = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        exploit::probe(pairing_path, log_cb, ctx, out_error)
+    }));
+    match res {
+        Ok(rc) => rc,
+        Err(e) => {
+            if !out_error.is_null() {
+                *out_error = ffi_util::cstr(format!("Rust panic in al_probe_device: {e:?}"));
+            }
+            1
+        }
+    }
+}
+
 /// Write all files from `source_dir` into `target_dir` outside the sandbox via AirTraffic exploit.
 ///
 /// # Safety
