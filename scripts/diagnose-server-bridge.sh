@@ -6,6 +6,7 @@ echo "address=$(ip -4 address show dev lo | grep -q '10.66.0.1/32' && echo ready
 echo "ike_port_500=$(ss -H -lun | grep -qE '(:|\])500[[:space:]]' && echo listening || echo missing)"
 echo "ike_port_4500=$(ss -H -lun | grep -qE '(:|\])4500[[:space:]]' && echo listening || echo missing)"
 echo "dns_port=$(ss -H -lun | grep -qE '10\.66\.0\.1:53[[:space:]]' && echo listening || echo missing)"
+echo "mdns_port=$(ss -H -lun | grep -qE '(:|\])5353[[:space:]]' && echo listening || echo missing)"
 
 if swanctl --list-sas --raw 2>/dev/null | grep -q 'uniqueid='; then
   echo "iphone_vpn_session=active"
