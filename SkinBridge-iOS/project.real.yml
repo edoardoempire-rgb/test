@@ -12,6 +12,19 @@ settings:
     OTHER_LDFLAGS: "-lc++"
     EXCLUDED_ARCHS[sdk=iphonesimulator*]: "x86_64"
 targets:
+  SkinBridgeTunnel:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: TunnelProvider
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.walletskins.skinbridge.tunnel
+        PRODUCT_NAME: SkinBridgeTunnel
+        INFOPLIST_FILE: TunnelProvider/Info.plist
+        CODE_SIGN_ENTITLEMENTS: TunnelProvider/TunnelProvider.entitlements
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
   SkinBridge:
     type: application
     platform: iOS
@@ -19,10 +32,13 @@ targets:
       - path: SkinBridge
       - path: Upstream
     dependencies:
+      - target: SkinBridgeTunnel
+        embed: true
       - framework: Vendor/AirliftFFI.xcframework
         embed: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.walletskins.skinbridge
         INFOPLIST_FILE: SkinBridge/Info.plist
+        CODE_SIGN_ENTITLEMENTS: SkinBridge/SkinBridge.entitlements
         GENERATE_INFOPLIST_FILE: NO
