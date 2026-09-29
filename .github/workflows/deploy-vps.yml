@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   deploy:
@@ -16,6 +17,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+
+      - name: Download latest tested AirLift gateway
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          GATEWAY_RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow build-airlift-gateway.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$GATEWAY_RUN_ID"
+          mkdir -p bin
+          gh run download "$GATEWAY_RUN_ID" --repo "$GITHUB_REPOSITORY" --name airlift-gateway-linux-x86_64 --dir bin
+          chmod 0755 bin/airlift-gateway
+          echo "Gateway from successful run $GATEWAY_RUN_ID"
 
       - name: Install deployment tools
         run: |
@@ -54,6 +66,9 @@ jobs:
             -e "ssh $SSH_OPTIONS" \
             ./ "$VPS_USER@$VPS_HOST:/opt/wallet-skins/"
 
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
+            'chmod +x /opt/wallet-skins/scripts/setup-server-bridge.sh && /opt/wallet-skins/scripts/setup-server-bridge.sh wallet.82-165-176-79.sslip.io'
+
           sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" "cat > /opt/wallet-skins/.env" <<ENV_FILE
           PORT=8787
           DOMAIN=wallet.82-165-176-79.sslip.io
@@ -71,6 +86,9 @@ jobs:
           SKINBRIDGE_TITLE=SkinBridge
           SUPPORT_URL=
           ENV_FILE
+
+          sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
+            'printf "\nSERVER_BRIDGE_ENABLED=true\nSERVER_BRIDGE_BINARY=/app/bin/airlift-gateway\nSERVER_BRIDGE_STATE_DIR=/var/lib/wallet-skins-bridge\nSERVER_BRIDGE_BIND=0.0.0.0\nSERVER_BRIDGE_PAIR_PORT=49153\nSERVER_BRIDGE_DOMAIN=wallet.internal\nSERVER_BRIDGE_ADDRESS=10.66.0.1\nSERVER_BRIDGE_DNS_BIND=10.66.0.1\nSERVER_BRIDGE_DNS_PORT=53\nSERVER_BRIDGE_DEVICE_ENDPOINT=10.66.0.2:49152\n" >> /opt/wallet-skins/.env && cat /etc/wallet-skins/bridge.env >> /opt/wallet-skins/.env && chmod 0600 /opt/wallet-skins/.env'
 
           sshpass -e ssh $SSH_OPTIONS "$VPS_USER@$VPS_HOST" \
             'chmod +x /opt/wallet-skins/scripts/deploy-vps.sh && cd /opt/wallet-skins && ./scripts/deploy-vps.sh'
