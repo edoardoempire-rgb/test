@@ -1,4 +1,4 @@
-const CACHE = "wallet-skins-v10";
+const CACHE = "wallet-skins-v11";
 
 self.addEventListener("install", event => event.waitUntil(
   caches.open(CACHE).then(cache => cache.addAll([
