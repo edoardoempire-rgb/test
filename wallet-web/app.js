@@ -174,6 +174,16 @@ async function refreshBridge() {
   try {
     const response = await fetch(`/v1/server-bridge/sessions/${encodeURIComponent(session.id)}?token=${encodeURIComponent(session.token)}`);
     const status = await response.json();
+    if (response.status === 404) {
+      sessionStorage.removeItem("walletBridgeSession");
+      clearInterval(bridgePoll);
+      $("#bridgeProgress").style.width = "0%";
+      $("#pairPin").hidden = true;
+      $("#connectPhone").disabled = false;
+      $("#connectPhone").textContent = "Collega iPhone →";
+      $("#checkPairing").disabled = true;
+      throw new Error("La sessione precedente è scaduta. Tocca Collega iPhone per ripartire.");
+    }
     if (!response.ok) throw new Error(status.error || "La sessione è scaduta.");
     if (["profile_ready", "pin_ready", "paired", "checking", "ready"].includes(status.state)) {
       $("#bridgeProgress").style.width = status.state === "ready" ? "100%" : ["paired", "checking"].includes(status.state) ? "90%" : status.state === "pin_ready" ? "75%" : "50%";
