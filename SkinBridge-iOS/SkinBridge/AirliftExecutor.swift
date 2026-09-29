@@ -11,7 +11,7 @@ struct AirliftExecutor: JobExecutor {
         guard #available(iOS 27.0, *) else { return Compatibility(supported: false, reason: "SkinBridge reale richiede iOS 27 o successivo.") }
         let pairing = PairingController.pairingFilePath()
         guard FileManager.default.fileExists(atPath: pairing) else { return Compatibility(supported: false, reason: "Completa il pairing on-device prima di continuare.") }
-        guard NetworkStatus.loopbackTunnelUp(deviceIP: "10.7.0.1") else { return Compatibility(supported: false, reason: "Attiva LocalDevVPN in modalità loopback.") }
+        guard NetworkStatus.loopbackTunnelUp(deviceIP: "10.7.0.1") else { return Compatibility(supported: false, reason: "Autorizza il collegamento locale integrato di SkinBridge.") }
         return Compatibility(supported: true, reason: "Pairing e tunnel locale disponibili.")
     }
 
