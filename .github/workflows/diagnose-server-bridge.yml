@@ -1,0 +1,29 @@
+name: Diagnose Server Bridge
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SSH client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sshpass
+      - name: Check bridge without exposing credentials
+        env:
+          SSHPASS: ${{ secrets.VPS_PASSWORD }}
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          test -n "$SSHPASS"
+          test -n "$VPS_HOST"
+          test -n "$VPS_USER"
+          sshpass -e ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=20 \
+            "$VPS_USER@$VPS_HOST" 'bash -s' < scripts/diagnose-server-bridge.sh
