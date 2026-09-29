@@ -31,6 +31,7 @@ test("mobileConfig creates an IKEv2 profile with split DNS and embedded credenti
   assert.match(profile, /com\.apple\.security\.root/);
   assert.doesNotMatch(profile, /OverridePrimary<\/key><integer>1/);
   assert.match(profile, /IncludeAllNetworks<\/key><integer>0/);
+  assert.match(profile, /ExcludeLocalNetworks<\/key><integer>0/);
   assert.match(profile, /SearchDomains<\/key><array><string>wallet\.internal<\/string><\/array>/);
   assert.match(profile, /SupplementalMatchDomainsNoSearch<\/key><false\/>/);
   assert.match(profile, /OnDemandEnabled<\/key><integer>0/);
@@ -78,4 +79,15 @@ test("discovery DNS enumerates the RemotePairing service type", () => {
   );
   assert.equal(response.readUInt16BE(6), 1);
   assert.ok(response.includes(Buffer.from("_remotepairing-pairable-host")));
+});
+
+test("discovery DNS answers the local Bonjour RemotePairing browse", () => {
+  const response = answerDiscoveryQuery(
+    dnsQuery("_remotepairing-pairable-host._tcp.local"),
+    { serviceId: "ABC-LOCAL", port: 49153, txt: { name: "Wallet Skins Gateway" } },
+    { domain: "local", address: "10.66.0.1" }
+  );
+  assert.equal(response.readUInt16BE(6), 1);
+  assert.ok(response.includes(Buffer.from("abc-local")));
+  assert.ok(response.includes(Buffer.from("Wallet Skins Gateway")));
 });
