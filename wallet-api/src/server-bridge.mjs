@@ -71,6 +71,7 @@ function readDnsName(packet, start) {
 
 function readDnsQuestion(packet) {
   if (!Buffer.isBuffer(packet) || packet.length < 12 || packet.readUInt16BE(4) !== 1) return null;
+  if ((packet.readUInt16BE(2) & 0x8000) !== 0) return null;
   try {
     const question = readDnsName(packet, 12);
     if (question.end + 4 > packet.length) return null;
@@ -188,6 +189,31 @@ export function startDiscoveryDns(bridge, { bind = "10.66.0.1", port = 53, domai
   return socket;
 }
 
+export function startDiscoveryMdns(bridge, { bind = "0.0.0.0", port = 5353, group = "224.0.0.251", domain = "local", address = "10.66.0.1" } = {}) {
+  const socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
+  socket.on("message", (packet, remote) => {
+    const answer = answerDiscoveryQuery(packet, bridge.discovery, { domain, address });
+    if (!answer) return;
+    bridge.noteDiscoveryQuery?.(readDnsQuestion(packet)?.name);
+    socket.send(answer, remote.port, remote.address);
+  });
+  socket.on("error", error => {
+    bridge.mdnsError = error.message;
+    console.error(`Wallet Skins discovery mDNS: ${error.message}`);
+  });
+  socket.bind(port, bind, () => {
+    try {
+      socket.addMembership(group);
+      socket.setMulticastLoopback(false);
+      console.log(`Wallet Skins discovery mDNS: ${group}:${port}`);
+    } catch (error) {
+      bridge.mdnsError = error.message;
+      console.error(`Wallet Skins discovery mDNS: ${error.message}`);
+    }
+  });
+  return socket;
+}
+
 export function mobileConfig({
   remoteAddress,
   remoteIdentifier = remoteAddress,
@@ -243,7 +269,7 @@ export function mobileConfig({
         <key>EnablePFS</key><integer>1</integer>
         <key>IncludeAllNetworks</key><integer>0</integer>
         <key>EnforceRoutes</key><integer>0</integer>
-        <key>ExcludeLocalNetworks</key><integer>1</integer>
+        <key>ExcludeLocalNetworks</key><integer>0</integer>
         <key>IKESecurityAssociationParameters</key><dict>
           <key>EncryptionAlgorithm</key><string>AES-256-GCM</string>
           <key>IntegrityAlgorithm</key><string>SHA2-256</string>
