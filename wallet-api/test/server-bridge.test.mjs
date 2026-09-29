@@ -32,6 +32,8 @@ test("mobileConfig creates an IKEv2 profile with split DNS and embedded credenti
   assert.doesNotMatch(profile, /OverridePrimary<\/key><integer>1/);
   assert.match(profile, /IncludeAllNetworks<\/key><integer>0/);
   assert.match(profile, /SupplementalMatchDomainsNoSearch<\/key><true\/>/);
+  assert.match(profile, /OnDemandEnabled<\/key><integer>0/);
+  assert.doesNotMatch(profile, /<string>Connect<\/string>/);
 });
 
 test("server bridge remains unavailable until every sensitive VPN setting exists", () => {
