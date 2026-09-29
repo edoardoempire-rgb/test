@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="stylesheet" href="/styles.css">
-  <style>.install-actions{display:grid;gap:8px}.phone-guide{margin-top:12px;padding:11px 12px;border:1px solid #363c49;border-radius:12px;background:#0d1017;color:#aeb6c5;font-size:12px;line-height:1.45}.phone-guide summary{color:#e4e7ed;font-weight:750;cursor:pointer}.phone-guide ol{padding-left:19px;margin:12px 0}.phone-guide li{margin:8px 0}.phone-guide p{margin:10px 0 0;color:#e5c970}</style>
+  <style>.install-actions{display:grid;gap:8px}.phone-guide{margin-top:12px;padding:11px 12px;border:1px solid #363c49;border-radius:12px;background:#0d1017;color:#aeb6c5;font-size:12px;line-height:1.45}.phone-guide summary{color:#e4e7ed;font-weight:750;cursor:pointer}.phone-guide ol{padding-left:19px;margin:12px 0}.phone-guide li{margin:8px 0}.phone-guide p{margin:10px 0 0;color:#e5c970}.direct-pending{margin:24px 0;padding:24px 20px;border:1px solid #343b49;border-radius:20px;background:linear-gradient(145deg,#171b25,#10131a);text-align:center}.direct-icon{display:grid;place-items:center;width:54px;height:54px;margin:0 auto 14px;border-radius:50%;background:#252b37;color:#b9aaff;font-size:32px}.direct-pending strong{display:block;font-size:20px}.direct-pending p{margin:10px 0 18px;color:#aeb6c5;line-height:1.5}.direct-pending .secondary{width:100%}</style>
   <title>Wallet Skins</title>
 </head>
 <body>
@@ -32,13 +32,21 @@
       <button class="back" data-go="home">‹ Indietro</button>
       <p class="eyebrow">Configurazione guidata</p><h2>Prepariamo il tuo iPhone.</h2>
       <p class="lead compact">Dopo l'installazione apri SkinBridge una sola volta: controllerà cosa manca e ti guiderà fino alla carta.</p>
-      <div class="progress"><span id="progressBar"></span></div>
-      <ol class="steps">
+      <div id="directPending" class="direct-pending" hidden>
+        <span class="direct-icon" aria-hidden="true">⌁</span>
+        <strong>Installazione diretta in preparazione</strong>
+        <p>SkinBridge non è ancora firmata per questo iPhone. Non ti chiederemo di installare altre app o certificati pubblici.</p>
+        <button class="secondary" id="retryDirect">Ricontrolla disponibilità</button>
+      </div>
+      <div id="onboardingFlow">
+        <div class="progress"><span id="progressBar"></span></div>
+        <ol class="steps">
         <li id="deviceStep" class="step"><span class="step-icon">1</span><div><strong>iPhone e connessione</strong><small id="deviceDetail">Controllo in corso…</small></div><span class="step-state"></span></li>
-        <li id="installStep" class="step"><span class="step-icon">2</span><div><strong>Installa SkinBridge</strong><small id="installDetail">L'helper collega Safari alle operazioni locali.</small><div class="install-actions"><button class="inline" id="installSigner" hidden>1. Prepara SideStore senza PC</button><button class="inline" id="installHelper">2. Installa SkinBridge</button></div><details id="sideStoreGuide" class="phone-guide" hidden><summary>Guida passo per passo su iPhone</summary><ol><li>Serve <strong>iOS 27 o successivo</strong> e il Wi-Fi attivo.</li><li>Installa <a href="https://apps.apple.com/app/id6755608044">LocalDevVPN dall'App Store</a>.</li><li>Tocca il primo pulsante. Su <strong>sideinstaller.net</strong> scegli <strong>Install DNS Profile</strong>, consenti il download e installalo da <strong>Impostazioni › Profilo scaricato</strong>.</li><li>In <strong>Impostazioni › Generali › VPN e gestione dispositivo › DNS</strong> seleziona SideInstaller. Torna al sito, accetta i termini e scegli un certificato disponibile.</li><li>Autorizza il profilo sviluppatore in <strong>Impostazioni › Generali › VPN e gestione dispositivo</strong>. Se il sito indica zero certificati validi, fermati: la via gratuita è temporaneamente indisponibile e va riprovata più tardi.</li><li>Apri SideInstaller e scegli <strong>Install SideStore</strong>. Poi autorizza il profilo di SideStore, attiva la Modalità sviluppatore se richiesta e apri SideStore.</li><li>Connetti LocalDevVPN, accedi in SideStore e completa il primo refresh. L'Apple Account non passa mai attraverso Wallet Skins.</li><li>Torna qui, tocca <strong>2. Installa SkinBridge</strong> e conferma dentro SideStore.</li><li>In SideStore › My Apps, tocca il contatore dei giorni di SkinBridge per rinnovarlo. Durante installazione e rinnovo lascia LocalDevVPN connessa.</li></ol><p>I certificati pubblici possono essere revocati da Apple senza preavviso. Se nessuno funziona, l'alternativa stabile è una distribuzione TestFlight con account Apple Developer.</p></details></div><span class="step-state"></span></li>
+        <li id="installStep" class="step"><span class="step-icon">2</span><div><strong>Installa SkinBridge</strong><small id="installDetail">L'helper collega Safari alle operazioni locali.</small><div class="install-actions"><button class="inline" id="installSigner" hidden>1. Prepara SideStore senza PC</button><button class="inline" id="installHelper">Installa SkinBridge</button></div><details id="sideStoreGuide" class="phone-guide" hidden><summary>Guida tecnica di test</summary><ol><li>Installa LocalDevVPN dall'App Store.</li><li>Prepara SideStore dal primo pulsante.</li><li>Installa SkinBridge dal secondo pulsante.</li></ol><p>Questo percorso compare soltanto nella modalità tecnica privata.</p></details></div><span class="step-state"></span></li>
         <li id="automationStep" class="step"><span class="step-icon">3</span><div><strong>Completa automaticamente</strong><small>Un'unica procedura per controllo, VPN, pairing e carta. Non leggerà numero, CVV o token.</small><button class="inline" id="startAutomation">Apri SkinBridge e continua</button></div><span class="step-state"></span></li>
-      </ol>
-      <div id="onboardingNotice" class="notice" hidden></div>
+        </ol>
+        <div id="onboardingNotice" class="notice" hidden></div>
+      </div>
     </section>
     <section class="screen" data-screen="studio">
       <button class="back" data-go="home">‹ Esci</button>
