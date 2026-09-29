@@ -7,7 +7,8 @@ const state = {
     helperInstallMode: null,
     signerSetupUrl: null,
     webDemoEnabled: true,
-    executorMode: "mock"
+    executorMode: "mock",
+    serverBridgeEnabled: false
   },
   mode: localStorage.getItem("walletSkinsMode") || "demo",
   helperReady: localStorage.getItem("skinBridgeReady") === "true",
@@ -15,6 +16,7 @@ const state = {
   cardRef: localStorage.getItem("skinBridgeCardRef") || "",
   selectedSkin: "aurora"
 };
+let bridgePoll = null;
 
 function show(name) {
   screens.forEach(screen => screen.classList.toggle("active", screen.dataset.screen === name));
@@ -54,7 +56,13 @@ async function loadConfig() {
     notice("#onboardingNotice", "Il server non risponde. Controlla la connessione e riprova.", "error");
   }
   $("#startDemo").hidden = !state.config.webDemoEnabled;
+  $("#startNative").textContent = state.config.serverBridgeEnabled ? "Collega questo iPhone" : "Configura iPhone";
   renderOnboarding();
+  if (state.config.serverBridgeEnabled && bridgeSession()) {
+    clearInterval(bridgePoll);
+    bridgePoll = setInterval(refreshBridge, 1500);
+    refreshBridge();
+  }
 }
 
 function consumeCallback() {
@@ -99,6 +107,13 @@ function step(element, status, detail) {
 }
 
 function renderOnboarding() {
+  if (state.config.serverBridgeEnabled) {
+    $("#directPending").hidden = true;
+    $("#onboardingFlow").hidden = true;
+    $("#serverBridgeFlow").hidden = false;
+    return;
+  }
+  $("#serverBridgeFlow").hidden = true;
   const sideStore = state.config.helperInstallMode === "sidestore";
   const technicalMode = new URLSearchParams(location.search).get("technical") === "1";
   const directPending = sideStore && !technicalMode;
@@ -147,6 +162,70 @@ function renderOnboarding() {
   );
   $("#startAutomation").disabled = !deviceOK || !installConfigured || automaticReady;
   $("#progressBar").style.width = `${[deviceOK, state.helperReady, automaticReady].filter(Boolean).length * (100 / 3)}%`;
+}
+
+function bridgeSession() {
+  try { return JSON.parse(sessionStorage.getItem("walletBridgeSession") || "null"); } catch { return null; }
+}
+
+async function refreshBridge() {
+  const session = bridgeSession();
+  if (!session) return;
+  try {
+    const response = await fetch(`/v1/server-bridge/sessions/${encodeURIComponent(session.id)}?token=${encodeURIComponent(session.token)}`);
+    const status = await response.json();
+    if (!response.ok) throw new Error(status.error || "La sessione è scaduta.");
+    if (["profile_ready", "pin_ready", "paired"].includes(status.state)) {
+      $("#bridgeProgress").style.width = status.state === "paired" ? "100%" : status.state === "pin_ready" ? "75%" : "50%";
+      $("#checkPairing").disabled = false;
+    }
+    if (status.state === "pin_ready") {
+      $("#pairPin").hidden = false;
+      $("#pairPinValue").textContent = status.pin;
+      $("#bridgePairText").textContent = "Inserisci questo codice nella richiesta mostrata da iPhone.";
+    }
+    if (status.state === "paired") {
+      clearInterval(bridgePoll);
+      $("#pairPin").hidden = true;
+      $("#bridgePairText").textContent = `${status.deviceName || "iPhone"} abbinato correttamente.`;
+      $("#bridgePairText").classList.add("bridge-ok");
+      notice("#bridgeNotice", "Abbinamento riuscito. Ora possiamo controllare la compatibilità senza installare app.", "info");
+      $("#checkPairing").textContent = "iPhone collegato ✓";
+      $("#checkPairing").disabled = true;
+    } else if (status.state === "error" || status.state === "expired") {
+      clearInterval(bridgePoll);
+      throw new Error(status.error || "La sessione è scaduta. Tocca di nuovo Collega iPhone.");
+    }
+  } catch (error) {
+    clearInterval(bridgePoll);
+    notice("#bridgeNotice", error.message, "error");
+  }
+}
+
+async function connectPhone() {
+  if (!isIOS()) {
+    notice("#bridgeNotice", "Apri questa pagina con Safari sul tuo iPhone.", "warn");
+    return;
+  }
+  $("#connectPhone").disabled = true;
+  $("#connectPhone").textContent = "Preparo la connessione…";
+  try {
+    const response = await fetch("/v1/server-bridge/sessions", { method: "POST" });
+    const session = await response.json();
+    if (!response.ok) throw new Error(session.error || "Non riesco a preparare la connessione.");
+    sessionStorage.setItem("walletBridgeSession", JSON.stringify({ id: session.id, token: session.token }));
+    $("#bridgeProgress").style.width = "35%";
+    $("#bridgeInstallText").textContent = "Profilo pronto. Accetta il download, poi apri Impostazioni > Profilo scaricato e tocca Installa.";
+    $("#connectPhone").textContent = "Profilo scaricato";
+    $("#checkPairing").disabled = false;
+    clearInterval(bridgePoll);
+    bridgePoll = setInterval(refreshBridge, 1500);
+    location.href = session.profileUrl;
+  } catch (error) {
+    $("#connectPhone").disabled = false;
+    $("#connectPhone").textContent = "Collega iPhone →";
+    notice("#bridgeNotice", error.message, "error");
+  }
 }
 
 function notice(selector, text, kind = "info") {
@@ -217,6 +296,8 @@ async function run(action) {
 document.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => show(button.dataset.go)));
 $("#startDemo").addEventListener("click", () => { setMode("demo"); show("studio"); });
 $("#startNative").addEventListener("click", () => { setMode("native"); renderOnboarding(); show("onboarding"); });
+$("#connectPhone").addEventListener("click", connectPhone);
+$("#checkPairing").addEventListener("click", refreshBridge);
 $("#retryDirect").addEventListener("click", loadConfig);
 $("#installSigner").addEventListener("click", () => {
   if (state.config.signerSetupUrl) location.href = state.config.signerSetupUrl;
