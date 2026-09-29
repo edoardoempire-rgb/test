@@ -47,3 +47,16 @@ extension reuses the upstream AirTraffic canary export sequence to copy one
 protected artwork file into the app sandbox, then rewrites the exact bytes to
 the source before returning. The modification remains covered by the same MIT
 notice and is identified in this project rather than attributed to upstream.
+
+## StosVPN / LocalDevVPN loopback design
+
+SkinBridge's embedded packet-tunnel provider is based on the local loopback
+address-translation design published by the SideStore Team in StosVPN and used
+by LocalDevVPN. SkinBridge is not a redistribution or rebrand of either app; it
+uses only the technically necessary packet-tunnel behavior inside the Wallet
+bridge and provides its own UI and orchestration.
+
+Copyright (c) 2025 SideStore Team. Used with attribution under the StosVPN
+license. The upstream project and license are available at
+https://github.com/SideStore/StosVPN. A copy of the license is preserved at
+`SkinBridge-iOS/Vendor/StosVPN-LICENSE`.
