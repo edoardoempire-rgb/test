@@ -128,7 +128,7 @@ function renderOnboarding() {
   );
   $("#installSigner").hidden = !sideStore || state.helperReady;
   $("#sideStoreGuide").hidden = !sideStore || state.helperReady;
-  $("#installHelper").textContent = sideStore ? "2. Installa SkinBridge" : "Apri installazione";
+  $("#installHelper").textContent = sideStore ? "2. Installa SkinBridge" : "Installa SkinBridge";
   $("#installHelper").disabled = state.helperReady || !installConfigured;
 
   const automaticReady = state.helperReady && state.setupReady && Boolean(state.cardRef);
