@@ -78,7 +78,7 @@ connections {
     }
     children {
       wallet-bridge {
-        local_ts = 10.66.0.0/24
+        local_ts = 10.66.0.0/24,224.0.0.251/32
         esp_proposals = aes256gcm16-ecp256
         start_action = none
         dpd_action = clear
