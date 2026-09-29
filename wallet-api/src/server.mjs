@@ -2,10 +2,10 @@ import http from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize } from "node:path";
 import { fileURLToPath } from "node:url";
-import { ALLOW_WEB_DEMO, EXECUTOR_MODE, HELPER_INSTALL_URL, OTA, PORT, PUBLIC_BASE_URL, PUBLIC_KEY_RAW_BASE64, SERVER_BRIDGE_ADDRESS, SERVER_BRIDGE_BINARY, SERVER_BRIDGE_BIND, SERVER_BRIDGE_DEVICE_ENDPOINT, SERVER_BRIDGE_DOMAIN, SERVER_BRIDGE_ENABLED, SERVER_BRIDGE_PAIR_PORT, SERVER_BRIDGE_STATE_DIR, SKINBRIDGE_BUNDLE_ID, SKINBRIDGE_TITLE, SKINBRIDGE_VERSION, SUPPORT_URL, VPN_CA_CERT_BASE64, VPN_PASSWORD, VPN_REMOTE_ADDRESS, VPN_REMOTE_IDENTIFIER, VPN_USERNAME } from "./config.mjs";
+import { ALLOW_WEB_DEMO, EXECUTOR_MODE, HELPER_INSTALL_URL, OTA, PORT, PUBLIC_BASE_URL, PUBLIC_KEY_RAW_BASE64, SERVER_BRIDGE_ADDRESS, SERVER_BRIDGE_BINARY, SERVER_BRIDGE_BIND, SERVER_BRIDGE_DEVICE_ENDPOINT, SERVER_BRIDGE_DNS_BIND, SERVER_BRIDGE_DNS_PORT, SERVER_BRIDGE_DOMAIN, SERVER_BRIDGE_ENABLED, SERVER_BRIDGE_PAIR_PORT, SERVER_BRIDGE_STATE_DIR, SKINBRIDGE_BUNDLE_ID, SKINBRIDGE_TITLE, SKINBRIDGE_VERSION, SUPPORT_URL, VPN_CA_CERT_BASE64, VPN_PASSWORD, VPN_REMOTE_ADDRESS, VPN_REMOTE_IDENTIFIER, VPN_USERNAME } from "./config.mjs";
 import { completeJob, createJob, executeDemoJob, getJob } from "./jobs.mjs";
 import { otaManifest } from "./ota.mjs";
-import { ServerBridge } from "./server-bridge.mjs";
+import { ServerBridge, startDiscoveryDns } from "./server-bridge.mjs";
 
 const webRoot = fileURLToPath(new URL("../../wallet-web/", import.meta.url));
 const types = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json", ".webmanifest": "application/manifest+json", ".svg": "image/svg+xml", ".png": "image/png" };
@@ -24,6 +24,14 @@ const serverBridge = new ServerBridge({
   vpnPassword: VPN_PASSWORD,
   caCertificateBase64: VPN_CA_CERT_BASE64
 });
+if (serverBridge.configured() && process.argv[1] === fileURLToPath(import.meta.url)) {
+  startDiscoveryDns(serverBridge, {
+    bind: SERVER_BRIDGE_DNS_BIND,
+    port: SERVER_BRIDGE_DNS_PORT,
+    domain: SERVER_BRIDGE_DOMAIN,
+    address: SERVER_BRIDGE_ADDRESS
+  });
+}
 
 function json(res, code, value) {
   res.writeHead(code, { "content-type": "application/json", "cache-control": "no-store", "access-control-allow-origin": "*", "access-control-allow-headers": "content-type,x-result-token" });
