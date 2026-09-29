@@ -13,7 +13,8 @@ permissions:
 
 jobs:
   linux-gateway:
-    runs-on: ubuntu-latest
+    # Build against an older glibc so the artifact also runs in Debian Bookworm.
+    runs-on: ubuntu-22.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
