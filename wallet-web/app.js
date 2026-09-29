@@ -99,6 +99,13 @@ function step(element, status, detail) {
 }
 
 function renderOnboarding() {
+  const sideStore = state.config.helperInstallMode === "sidestore";
+  const technicalMode = new URLSearchParams(location.search).get("technical") === "1";
+  const directPending = sideStore && !technicalMode;
+  $("#directPending").hidden = !directPending;
+  $("#onboardingFlow").hidden = directPending;
+  if (directPending) return;
+
   const deviceOK = isIOS() && (isSecureContext || location.hostname === "localhost");
   step(
     $("#deviceStep"),
@@ -111,7 +118,6 @@ function renderOnboarding() {
   );
 
   const installConfigured = Boolean(state.config.helperInstallUrl);
-  const sideStore = state.config.helperInstallMode === "sidestore";
   const installText = state.config.helperInstallMode === "ota"
     ? "Tocca Installa: iOS scaricherà la build firmata direttamente."
     : sideStore
@@ -211,6 +217,7 @@ async function run(action) {
 document.querySelectorAll("[data-go]").forEach(button => button.addEventListener("click", () => show(button.dataset.go)));
 $("#startDemo").addEventListener("click", () => { setMode("demo"); show("studio"); });
 $("#startNative").addEventListener("click", () => { setMode("native"); renderOnboarding(); show("onboarding"); });
+$("#retryDirect").addEventListener("click", loadConfig);
 $("#installSigner").addEventListener("click", () => {
   if (state.config.signerSetupUrl) location.href = state.config.signerSetupUrl;
 });
