@@ -3,6 +3,11 @@ permissions:
   contents: write
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "SkinBridge-iOS/**"
+      - ".github/workflows/build-skinbridge-ipa.yml"
 jobs:
   build:
     runs-on: xcode-27
