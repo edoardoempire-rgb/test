@@ -31,7 +31,8 @@ test("mobileConfig creates an IKEv2 profile with split DNS and embedded credenti
   assert.match(profile, /com\.apple\.security\.root/);
   assert.doesNotMatch(profile, /OverridePrimary<\/key><integer>1/);
   assert.match(profile, /IncludeAllNetworks<\/key><integer>0/);
-  assert.match(profile, /SupplementalMatchDomainsNoSearch<\/key><true\/>/);
+  assert.match(profile, /SearchDomains<\/key><array><string>wallet\.internal<\/string><\/array>/);
+  assert.match(profile, /SupplementalMatchDomainsNoSearch<\/key><false\/>/);
   assert.match(profile, /OnDemandEnabled<\/key><integer>0/);
   assert.doesNotMatch(profile, /<string>Connect<\/string>/);
 });
@@ -58,4 +59,23 @@ test("discovery DNS answers the RemotePairing browse query with PTR, SRV, TXT an
 test("discovery DNS leaves unrelated internet names to the upstream resolver", () => {
   const query = dnsQuery("www.example.com", 1);
   assert.equal(answerDiscoveryQuery(query, { serviceId: "ABC", port: 49153, txt: {} }), null);
+});
+
+test("discovery DNS advertises the wide-area Bonjour browse domain", () => {
+  const response = answerDiscoveryQuery(
+    dnsQuery("b._dns-sd._udp.wallet.internal"),
+    { serviceId: "ABC", port: 49153, txt: {} }
+  );
+  assert.equal(response.readUInt16BE(6), 1);
+  assert.ok(response.includes(Buffer.from("wallet")));
+  assert.ok(response.includes(Buffer.from("internal")));
+});
+
+test("discovery DNS enumerates the RemotePairing service type", () => {
+  const response = answerDiscoveryQuery(
+    dnsQuery("_services._dns-sd._udp.wallet.internal"),
+    { serviceId: "ABC", port: 49153, txt: {} }
+  );
+  assert.equal(response.readUInt16BE(6), 1);
+  assert.ok(response.includes(Buffer.from("_remotepairing-pairable-host")));
 });
