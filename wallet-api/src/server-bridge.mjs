@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import dgram from "node:dgram";
 import { join } from "node:path";
 
 const TTL_MS = 15 * 60 * 1000;
@@ -26,6 +27,125 @@ function sameSecret(actual, expected) {
   const left = Buffer.from(actual || "");
   const right = Buffer.from(expected || "");
   return left.length === right.length && timingSafeEqual(left, right);
+}
+
+function dnsName(name) {
+  const labels = name.replace(/\.$/, "").split(".");
+  return Buffer.concat([...labels.map(label => {
+    const bytes = Buffer.from(label);
+    if (!bytes.length || bytes.length > 63) throw new Error("invalid DNS label");
+    return Buffer.concat([Buffer.from([bytes.length]), bytes]);
+  }), Buffer.from([0])]);
+}
+
+function readDnsName(packet, start) {
+  const labels = [];
+  let offset = start;
+  let end = start;
+  let jumped = false;
+  const visited = new Set();
+  for (;;) {
+    if (offset >= packet.length || visited.has(offset)) throw new Error("invalid DNS name");
+    visited.add(offset);
+    const length = packet[offset];
+    if ((length & 0xc0) === 0xc0) {
+      if (offset + 1 >= packet.length) throw new Error("invalid DNS pointer");
+      const pointer = ((length & 0x3f) << 8) | packet[offset + 1];
+      if (!jumped) end = offset + 2;
+      jumped = true;
+      offset = pointer;
+      continue;
+    }
+    offset += 1;
+    if (length === 0) {
+      if (!jumped) end = offset;
+      break;
+    }
+    if (offset + length > packet.length) throw new Error("invalid DNS label");
+    labels.push(packet.subarray(offset, offset + length).toString("utf8"));
+    offset += length;
+    if (!jumped) end = offset;
+  }
+  return { name: labels.join(".").toLowerCase(), end };
+}
+
+function dnsRecord(name, type, value, ttl = 10) {
+  const header = Buffer.alloc(10);
+  header.writeUInt16BE(type, 0);
+  header.writeUInt16BE(1, 2);
+  header.writeUInt32BE(ttl, 4);
+  header.writeUInt16BE(value.length, 8);
+  return Buffer.concat([dnsName(name), header, value]);
+}
+
+function ipv4(address) {
+  const parts = address.split(".").map(Number);
+  if (parts.length !== 4 || parts.some(part => !Number.isInteger(part) || part < 0 || part > 255)) {
+    throw new Error("bridge DNS address must be IPv4");
+  }
+  return Buffer.from(parts);
+}
+
+function txtData(txt = {}) {
+  const entries = Object.entries(txt).map(([key, value]) => {
+    const bytes = Buffer.from(`${key}=${value}`);
+    if (bytes.length > 255) throw new Error("DNS TXT entry is too long");
+    return Buffer.concat([Buffer.from([bytes.length]), bytes]);
+  });
+  return Buffer.concat(entries);
+}
+
+export function answerDiscoveryQuery(packet, discovery, { domain = "wallet.internal", address = "10.66.0.1" } = {}) {
+  if (!Buffer.isBuffer(packet) || packet.length < 12 || packet.readUInt16BE(4) !== 1) return null;
+  let question;
+  try { question = readDnsName(packet, 12); } catch { return null; }
+  if (question.end + 4 > packet.length) return null;
+  const type = packet.readUInt16BE(question.end);
+  const questionEnd = question.end + 4;
+  const service = `_remotepairing-pairable-host._tcp.${domain}`.toLowerCase();
+  const instance = `${discovery?.serviceId || ""}.${service}`.toLowerCase();
+  const target = `gateway.${domain}`.toLowerCase();
+  const answers = [];
+  const additional = [];
+  if (discovery && question.name === service && (type === 12 || type === 255)) {
+    answers.push(dnsRecord(service, 12, dnsName(instance)));
+    const srv = Buffer.alloc(6);
+    srv.writeUInt16BE(Number(discovery.port), 4);
+    additional.push(dnsRecord(instance, 33, Buffer.concat([srv, dnsName(target)])));
+    additional.push(dnsRecord(instance, 16, txtData(discovery.txt)));
+    additional.push(dnsRecord(target, 1, ipv4(address)));
+  } else if (discovery && question.name === instance && (type === 33 || type === 255)) {
+    const srv = Buffer.alloc(6);
+    srv.writeUInt16BE(Number(discovery.port), 4);
+    answers.push(dnsRecord(instance, 33, Buffer.concat([srv, dnsName(target)])));
+    additional.push(dnsRecord(target, 1, ipv4(address)));
+  } else if (discovery && question.name === instance && (type === 16 || type === 255)) {
+    answers.push(dnsRecord(instance, 16, txtData(discovery.txt)));
+  } else if (question.name === target && (type === 1 || type === 255)) {
+    answers.push(dnsRecord(target, 1, ipv4(address)));
+  }
+  const header = Buffer.alloc(12);
+  packet.copy(header, 0, 0, 2);
+  header.writeUInt16BE(answers.length || additional.length ? 0x8500 : 0x8503, 2);
+  header.writeUInt16BE(1, 4);
+  header.writeUInt16BE(answers.length, 6);
+  header.writeUInt16BE(0, 8);
+  header.writeUInt16BE(additional.length, 10);
+  return Buffer.concat([header, packet.subarray(12, questionEnd), ...answers, ...additional]);
+}
+
+export function startDiscoveryDns(bridge, { bind = "10.66.0.1", port = 53, domain = "wallet.internal", address = bind } = {}) {
+  const socket = dgram.createSocket("udp4");
+  socket.on("message", (packet, remote) => {
+    const answer = answerDiscoveryQuery(packet, bridge.discovery, { domain, address });
+    if (answer) socket.send(answer, remote.port, remote.address);
+  });
+  socket.on("error", error => {
+    bridge.dnsError = error.message;
+    console.error(`Wallet Skins discovery DNS: ${error.message}`);
+  });
+  socket.bind(port, bind, () => console.log(`Wallet Skins discovery DNS: ${bind}:${port}`));
+  return socket;
 }
 
 export function mobileConfig({
