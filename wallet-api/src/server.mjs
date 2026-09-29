@@ -82,6 +82,10 @@ export function handler(req, res) {
     const status = serverBridge.status(bridgeStatusMatch[1], url.searchParams.get("token"));
     return status ? json(res, 200, status) : json(res, 404, { error: "pairing session not found" });
   }
+  if (req.method === "DELETE" && bridgeStatusMatch) {
+    const cancelled = serverBridge.cancel(bridgeStatusMatch[1], url.searchParams.get("token"));
+    return cancelled ? json(res, 200, { cancelled: true }) : json(res, 404, { error: "pairing session not found" });
+  }
   if (req.method === "GET" && url.pathname === "/install/manifest.plist") {
     if (OTA.mode !== "ota" || !OTA.ipaUrl) return json(res, 404, { error: "installer not configured" });
     return send(res, 200, "application/xml; charset=utf-8", otaManifest({
